@@ -23,13 +23,21 @@ export function createProxyRoutes(
 ): Hono {
   const app = new Hono();
 
-  app.all("/:grantName{.+}", async (c) => {
-    const grantName = c.req.param("grantName");
-
-    // Extract the path after /proxy/:grantName
+  // Catch-all: Hono strips the /proxy prefix since this is mounted via app.route("/proxy", ...)
+  // So the path here is /:grantName/rest/of/path
+  app.all("/*", async (c) => {
     const url = new URL(c.req.url);
-    const prefix = `/proxy/${grantName}`;
-    let targetPath = url.pathname.slice(prefix.length) || "/";
+    // Full pathname still includes /proxy, extract after it
+    const fullPath = url.pathname;
+    const proxyIdx = fullPath.indexOf("/proxy/");
+    const afterProxy = proxyIdx !== -1 ? fullPath.slice(proxyIdx + "/proxy/".length) : fullPath.slice(1);
+    const slashIdx = afterProxy.indexOf("/");
+    const grantName = slashIdx === -1 ? afterProxy : afterProxy.slice(0, slashIdx);
+    const targetPath = slashIdx === -1 ? "/" : afterProxy.slice(slashIdx);
+
+    if (!grantName) {
+      return c.json({ error: "Missing grant name in proxy URL" }, 400);
+    }
 
     let capabilities;
     try {

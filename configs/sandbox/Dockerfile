@@ -5,7 +5,10 @@ RUN apt-get update && apt-get install -y \
     build-essential jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code
+# Install Ollama (default agent runtime)
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Install Claude Code (optional runtime)
 RUN npm install -g @anthropic-ai/claude-code
 
 RUN useradd -m -s /bin/bash agent

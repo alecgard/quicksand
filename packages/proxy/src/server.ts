@@ -4,6 +4,7 @@ import { StateManager } from "./state.js";
 import { ActionLog } from "./action-log.js";
 import { CostTracker } from "./cost-tracker.js";
 import { EscalationManager } from "./escalation.js";
+import { TaskManager } from "./task-manager.js";
 import { createProxyRoutes } from "./routes/proxy.js";
 import { createMCPRoutes } from "./routes/mcp.js";
 import { createAPIRoutes } from "./routes/api.js";
@@ -15,6 +16,7 @@ export interface ServerInstance {
   actionLog: ActionLog;
   costTracker: CostTracker;
   escalationManager: EscalationManager;
+  taskManager: TaskManager;
 }
 
 /**
@@ -27,12 +29,26 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
   const actionLog = new ActionLog();
   const costTracker = new CostTracker();
   const escalationManager = new EscalationManager(stateManager, actionLog);
+  const taskManager = new TaskManager();
 
   // Load manifest if provided in config
   if (config.manifest) {
     stateManager.loadManifest(config.manifest);
+    // Also create a corresponding task
+    taskManager.createTask(
+      config.manifest.environment.agent.prompt,
+      config.manifest,
+    );
   } else if (process.env.MANIFEST_PATH) {
     stateManager.loadManifestFromFile(process.env.MANIFEST_PATH);
+    // Create task for the loaded manifest
+    const state = stateManager.getState();
+    if (state) {
+      taskManager.createTask(
+        state.manifest.environment.agent.prompt,
+        state.manifest,
+      );
+    }
   }
 
   // Load org policy if provided in config
@@ -49,7 +65,7 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
   app.route("/mcp", createMCPRoutes(stateManager, actionLog, costTracker));
   app.route(
     "/api",
-    createAPIRoutes(stateManager, actionLog, costTracker, escalationManager),
+    createAPIRoutes(stateManager, actionLog, costTracker, escalationManager, taskManager),
   );
 
   // Health check
@@ -64,5 +80,6 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
     actionLog,
     costTracker,
     escalationManager,
+    taskManager,
   };
 }

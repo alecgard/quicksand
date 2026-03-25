@@ -3,11 +3,12 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "test": "node --import tsx --test test/**/*.test.ts"
+    "test": "node --import tsx --test test/adversarial/*.test.ts test/unit/*.test.ts test/integration/*.test.ts"
   },
   "devDependencies": {
     "@quicksand/manifest": "workspace:*",
     "@quicksand/proxy": "workspace:*",
+    "@quicksand/sandbox": "workspace:*",
     "tsx": "^4"
   }
 }

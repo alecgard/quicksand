@@ -14,4 +14,4 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile --prod
 
 EXPOSE 8080
 
-CMD ["node", "packages/proxy/dist/index.js"]
+CMD ["node", "packages/proxy/dist/main.js"]

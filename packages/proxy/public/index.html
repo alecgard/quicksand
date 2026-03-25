@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quicksand - Sandbox Approval Console</title>
+  <title>Quicksand Control Plane</title>
   <style>
+    /* ── Reset & Variables ─────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -36,26 +37,89 @@
       min-height: 100vh;
     }
 
-    /* Header */
+    /* ── Header ────────────────────────────────────────────── */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 24px;
+      padding: 12px 24px;
       border-bottom: 1px solid var(--border);
       background: var(--card);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .header-brand {
+      display: flex;
+      flex-direction: column;
     }
 
     .header-title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       color: #fff;
+      letter-spacing: 0.5px;
     }
 
     .header-subtitle {
-      font-size: 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ── Tab Navigation ────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
       color: var(--text-dim);
-      margin-top: 2px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+      border-color: var(--border-light);
+    }
+
+    .tab-btn .badge {
+      display: inline-block;
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-left: 6px;
+      min-width: 18px;
+      text-align: center;
+      animation: pulse-badge 2s infinite;
+    }
+
+    @keyframes pulse-badge {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
 
     .connection-status {
@@ -76,982 +140,1852 @@
 
     .status-dot.connected { background: var(--green); }
 
-    /* Layout */
-    .main {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto 1fr;
-      gap: 16px;
-      padding: 16px 24px;
-      max-width: 1600px;
+    /* ── Tab Panels ────────────────────────────────────────── */
+    .tab-panel {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      padding: 20px 24px;
+      max-width: 1400px;
       margin: 0 auto;
     }
 
-    .section-escalations {
-      grid-column: 1 / -1;
-      grid-row: 1;
+    .tab-panel.active {
+      display: block;
+      opacity: 1;
     }
 
-    .section-task {
-      grid-column: 1;
-      grid-row: 2;
+    /* ── Common Components ─────────────────────────────────── */
+    .section {
+      margin-bottom: 24px;
     }
 
-    .section-log {
-      grid-column: 2;
-      grid-row: 2;
-    }
-
-    @media (max-width: 1000px) {
-      .main {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
-      }
-      .section-escalations { grid-column: 1; grid-row: 1; }
-      .section-task { grid-column: 1; grid-row: 2; }
-      .section-log { grid-column: 1; grid-row: 3; }
-    }
-
-    /* Panels */
-    .panel {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .panel-header {
+    .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 16px;
+      padding: 10px 0;
       border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      position: sticky;
+      top: 52px;
+      background: var(--bg);
+      z-index: 10;
+    }
+
+    .section-title {
+      font-size: 14px;
       font-weight: 600;
-      font-size: 12px;
+      color: #fff;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 1px;
+    }
+
+    .section-count {
+      font-size: 11px;
       color: var(--text-dim);
     }
 
-    .panel-badge {
-      background: var(--orange);
-      color: #000;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 10px;
-      min-width: 20px;
-      text-align: center;
-    }
-
-    .panel-body {
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       padding: 16px;
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
     }
 
-    .panel-body.scrollable {
-      max-height: 500px;
+    .card:hover {
+      border-color: var(--border-light);
+    }
+
+    .card.highlight-new {
+      animation: highlight-flash 1.5s ease-out;
+    }
+
+    @keyframes highlight-flash {
+      0% { border-color: var(--yellow); box-shadow: 0 0 12px rgba(234,179,8,0.3); }
+      100% { border-color: var(--border); box-shadow: none; }
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-pending { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-running { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .badge-completed { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-failed { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-approved { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-denied { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-timeout { background: rgba(136,136,136,0.15); color: var(--text-dim); }
+
+    .badge-type {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .badge-http_request { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .badge-mcp_tool_call { background: rgba(168,85,247,0.15); color: var(--purple); }
+    .badge-escalation_request { background: rgba(245,158,11,0.15); color: var(--orange); }
+    .badge-escalation_result { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-grant_added { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-denied { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .badge-task-id {
+      background: rgba(168,85,247,0.15);
+      color: var(--purple);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    /* Pulse indicator */
+    .pulse-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--orange);
+      animation: pulse-glow 1.5s infinite;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .btn:hover { border-color: var(--border-light); background: var(--card-hover); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--green);
+      color: #000;
+      border-color: var(--green);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover { background: #0ea572; }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--red);
+      border-color: var(--red-dim);
+    }
+
+    .btn-danger:hover { background: var(--red-dim); color: #fff; }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+
+    /* Form elements */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+
+    .form-input.error, .form-textarea.error {
+      border-color: var(--red);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-select {
+      cursor: pointer;
+    }
+
+    .form-select option {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      accent-color: var(--green);
+    }
+
+    /* Collapsible */
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 0;
+      color: var(--text-dim);
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .collapsible-header:hover { color: var(--text); }
+
+    .collapsible-arrow {
+      transition: transform 0.2s;
+      font-size: 10px;
+    }
+
+    .collapsible-arrow.open { transform: rotate(90deg); }
+
+    .collapsible-body {
+      display: none;
+      padding: 8px 0;
+    }
+
+    .collapsible-body.open { display: block; }
+
+    /* JSON viewer */
+    .json-viewer {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      overflow-x: auto;
+      max-height: 400px;
       overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
 
-    .panel-body::-webkit-scrollbar { width: 6px; }
-    .panel-body::-webkit-scrollbar-track { background: transparent; }
-    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .json-key { color: var(--blue); }
+    .json-string { color: var(--green); }
+    .json-number { color: var(--orange); }
+    .json-boolean { color: var(--purple); }
+    .json-null { color: var(--text-dim); }
+
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      max-width: 400px;
+      animation: toast-in 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .toast.error { border-color: var(--red-dim); color: var(--red); }
+    .toast.success { border-color: var(--green-dim); color: var(--green); }
+
+    .toast.hiding {
+      animation: toast-out 0.3s ease forwards;
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes toast-out {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(40px); }
+    }
 
     /* Empty state */
     .empty-state {
       text-align: center;
-      padding: 32px 16px;
+      padding: 40px 20px;
       color: var(--text-muted);
-      font-size: 12px;
+      font-size: 13px;
     }
 
-    /* Escalation cards */
+    .empty-state-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+      opacity: 0.3;
+    }
+
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      text-align: left;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(51,51,51,0.5);
+      font-size: 12px;
+      vertical-align: top;
+    }
+
+    .data-table tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .data-table tr.row-failed td {
+      background: rgba(239,68,68,0.05);
+    }
+
+    .text-truncate {
+      max-width: 300px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .text-clickable {
+      cursor: pointer;
+      color: var(--blue);
+    }
+
+    .text-clickable:hover {
+      text-decoration: underline;
+    }
+
+    /* Task card grid */
+    .task-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 12px;
+    }
+
+    .task-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .task-card-id {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .task-card-prompt {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .task-card-prompt.truncated {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-card-meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .task-card-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .task-card-detail {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+
+    .task-card-detail.open { display: block; }
+
+    /* Escalation card */
     .escalation-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .escalation-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .escalation-reason {
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .escalation-capability {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar .form-select, .filter-bar .form-input {
+      width: auto;
+      min-width: 160px;
+    }
+
+    /* Auto-scroll toggle */
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    /* Settings grid */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .settings-full {
+      grid-column: 1 / -1;
+    }
+
+    /* Cost stats */
+    .cost-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .cost-stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .cost-stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .cost-stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    /* Capability builder */
+    .capability-entry {
+      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 16px;
-      margin-bottom: 12px;
-      transition: border-color 0.3s, background 0.3s;
+      padding: 12px;
+      margin-bottom: 8px;
     }
 
-    .escalation-card:last-child { margin-bottom: 0; }
-
-    .escalation-card.pending {
-      border-color: var(--orange);
-      background: rgba(245, 158, 11, 0.05);
-    }
-
-    .escalation-card.highlight {
-      background: rgba(245, 158, 11, 0.12);
-    }
-
-    .escalation-card.approved {
-      border-color: var(--green-dim);
-      opacity: 0.6;
-    }
-
-    .escalation-card.denied {
-      border-color: var(--red-dim);
-      opacity: 0.6;
-    }
-
-    .escalation-card.timeout {
-      border-color: var(--text-muted);
-      opacity: 0.5;
-    }
-
-    .escalation-meta {
+    .capability-entry-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
     }
 
-    .escalation-status {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 2px 8px;
-      border-radius: 4px;
+    /* Slider */
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
     }
 
-    .escalation-status.pending { background: var(--orange); color: #000; }
-    .escalation-status.approved { background: var(--green-dim); color: var(--green); }
-    .escalation-status.denied { background: var(--red-dim); color: var(--red); }
-    .escalation-status.timeout { background: #333; color: var(--text-muted); }
-
-    .escalation-time {
+    .slider-value {
       font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .escalation-reason {
-      font-size: 13px;
-      margin-bottom: 10px;
-      color: #fff;
-      line-height: 1.6;
-    }
-
-    .escalation-capability {
-      margin-bottom: 12px;
-    }
-
-    .capability-summary {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    .cap-tag {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: #2a2a2a;
-      border: 1px solid var(--border);
-    }
-
-    .cap-tag.name { color: var(--blue); border-color: rgba(59, 130, 246, 0.3); }
-    .cap-tag.url { color: var(--purple); border-color: rgba(168, 85, 247, 0.3); }
-    .cap-tag.method { color: var(--green); border-color: rgba(16, 185, 129, 0.3); }
-    .cap-tag.tool { color: var(--orange); border-color: rgba(245, 158, 11, 0.3); }
-
-    .capability-toggle {
-      font-size: 11px;
-      color: var(--text-muted);
-      cursor: pointer;
-      user-select: none;
-      margin-top: 4px;
-    }
-
-    .capability-toggle:hover { color: var(--text); }
-
-    .capability-json {
-      display: none;
-      background: #111;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px;
-      margin-top: 6px;
-      font-size: 11px;
-      overflow-x: auto;
-      white-space: pre;
       color: var(--text-dim);
-    }
-
-    .capability-json.open { display: block; }
-
-    /* Escalation actions */
-    .escalation-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-    }
-
-    .btn {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-
-    .btn:hover { opacity: 0.85; }
-    .btn:active { transform: scale(0.97); }
-
-    .btn-approve { background: var(--green); color: #000; }
-    .btn-deny { background: var(--red); color: #fff; }
-
-    .action-input {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      background: #111;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 5px 8px;
-    }
-
-    .action-input:focus {
-      outline: none;
-      border-color: var(--border-light);
-    }
-
-    .action-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-    }
-
-    .action-group {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    select.action-input {
-      appearance: none;
-      -webkit-appearance: none;
-      padding-right: 20px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 6px center;
-    }
-
-    /* Resolved section toggle */
-    .resolved-toggle {
-      font-size: 12px;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 10px 0 4px;
-      user-select: none;
-      border-top: 1px solid var(--border);
-      margin-top: 12px;
-    }
-
-    .resolved-toggle:hover { color: var(--text); }
-
-    .resolved-list { display: none; }
-    .resolved-list.open { display: block; padding-top: 8px; }
-
-    /* Task info */
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(51, 51, 51, 0.5);
-      font-size: 12px;
-    }
-
-    .info-row:last-child { border-bottom: none; }
-
-    .info-label {
-      color: var(--text-muted);
-      flex-shrink: 0;
-      margin-right: 12px;
-    }
-
-    .info-value {
-      color: var(--text);
       text-align: right;
-      word-break: break-all;
     }
 
-    .capability-list {
-      margin-top: 8px;
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .task-cards { grid-template-columns: 1fr; }
+      .settings-grid { grid-template-columns: 1fr; }
+      .cost-stats { grid-template-columns: 1fr; }
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+      .header-left { gap: 16px; }
+      .tab-nav { flex-wrap: wrap; }
     }
 
-    .capability-item {
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      margin-bottom: 6px;
-      overflow: hidden;
-    }
-
-    .capability-item-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 10px;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--text);
-      user-select: none;
-    }
-
-    .capability-item-header:hover { background: rgba(255,255,255,0.03); }
-
-    .capability-item-body {
-      display: none;
-      padding: 8px 10px;
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-dim);
-      white-space: pre;
-      overflow-x: auto;
-    }
-
-    .capability-item-body.open { display: block; }
-
-    .subsection-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      padding: 12px 0 6px;
-      border-top: 1px solid var(--border);
-      margin-top: 8px;
-    }
-
-    .subsection-title:first-child { border-top: none; margin-top: 0; }
-
-    .grant-item {
-      border-left: 3px solid var(--green);
-      padding: 8px 10px;
-      margin-bottom: 6px;
-      background: rgba(16, 185, 129, 0.05);
-      border-radius: 0 4px 4px 0;
-      font-size: 11px;
-    }
-
-    .grant-meta {
-      color: var(--text-muted);
-      font-size: 10px;
-      margin-top: 4px;
-    }
-
-    /* Cost tracker */
-    .cost-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .cost-card {
-      background: #111;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px;
-      text-align: center;
-    }
-
-    .cost-value {
-      font-size: 18px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .cost-value.warning { color: var(--yellow); }
-    .cost-value.danger { color: var(--red); }
-
-    .cost-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      margin-top: 2px;
-    }
-
-    /* Action log */
-    .log-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 10px;
-    }
-
-    .log-filter {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      background: #111;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 4px 8px;
-      appearance: none;
-      -webkit-appearance: none;
-      padding-right: 20px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 6px center;
-    }
-
-    .log-filter:focus { outline: none; border-color: var(--border-light); }
-
+    /* Log entry */
     .log-entry {
-      display: flex;
+      display: grid;
+      grid-template-columns: auto auto auto 1fr;
       gap: 10px;
+      align-items: start;
       padding: 6px 0;
-      border-bottom: 1px solid rgba(51, 51, 51, 0.4);
-      font-size: 11px;
-      align-items: flex-start;
+      border-bottom: 1px solid rgba(51,51,51,0.3);
+      font-size: 12px;
     }
 
-    .log-entry:last-child { border-bottom: none; }
+    .log-entry:hover {
+      background: rgba(255,255,255,0.02);
+    }
 
-    .log-time {
+    .log-timestamp {
       color: var(--text-muted);
-      flex-shrink: 0;
-      font-size: 10px;
-      min-width: 60px;
+      font-size: 11px;
+      white-space: nowrap;
+      cursor: help;
     }
 
-    .log-type {
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 1px 6px;
-      border-radius: 3px;
-      flex-shrink: 0;
-      min-width: 80px;
-      text-align: center;
+    .log-details-toggle {
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 11px;
     }
 
-    .log-type.http_request { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
-    .log-type.mcp_tool_call { background: rgba(168, 85, 247, 0.15); color: var(--purple); }
-    .log-type.escalation_request { background: rgba(245, 158, 11, 0.15); color: var(--orange); }
-    .log-type.escalation_result_approved { background: rgba(16, 185, 129, 0.15); color: var(--green); }
-    .log-type.escalation_result_denied { background: rgba(239, 68, 68, 0.15); color: var(--red); }
-    .log-type.grant_added { background: rgba(16, 185, 129, 0.15); color: var(--green); }
-    .log-type.denied { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+    .log-details-toggle:hover { color: var(--text); }
 
     .log-details {
+      grid-column: 1 / -1;
+      display: none;
+      margin-top: 4px;
+    }
+
+    .log-details.open { display: block; }
+
+    /* Scrollable log container */
+    .log-scroll {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    /* Expiry input group */
+    .expiry-input {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .expiry-input input {
+      width: 60px;
+      padding: 4px 6px;
+      font-size: 11px;
+    }
+
+    .expiry-input span {
+      font-size: 10px;
       color: var(--text-dim);
-      word-break: break-all;
-      flex: 1;
-    }
-
-    /* Animations */
-    @keyframes highlight-pulse {
-      0% { background: rgba(245, 158, 11, 0.15); }
-      100% { background: rgba(245, 158, 11, 0.05); }
-    }
-
-    .escalation-card.new-pulse {
-      animation: highlight-pulse 1.5s ease-out;
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <div class="header">
-    <div>
-      <div class="header-title">Quicksand</div>
-      <div class="header-subtitle">Sandbox Approval Console</div>
+<!-- ── Header & Navigation ──────────────────────────────── -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-brand">
+      <div class="header-title">QUICKSAND</div>
+      <div class="header-subtitle">Control Plane</div>
     </div>
-    <div class="connection-status">
-      <span id="connection-label">Connecting...</span>
-      <span class="status-dot" id="connection-dot"></span>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="tasks">Tasks</button>
+      <button class="tab-btn" data-tab="escalations">Escalations<span id="esc-badge" class="badge" style="display:none">0</span></button>
+      <button class="tab-btn" data-tab="logs">Logs</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+  </div>
+  <div class="connection-status">
+    <div class="status-dot" id="conn-dot"></div>
+    <span id="conn-text">Connecting...</span>
+  </div>
+</header>
+
+<!-- ── Toast Container ──────────────────────────────────── -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TASKS TAB
+     ══════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="panel-tasks">
+
+  <!-- New Task Form -->
+  <div class="section">
+    <div class="section-header">
+      <h2 class="section-title">Create Task</h2>
+    </div>
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label" for="task-prompt">What should the agent do?</label>
+        <textarea class="form-textarea" id="task-prompt" rows="4" placeholder="Describe the task for the agent..."></textarea>
+      </div>
+
+      <div class="collapsible-header" onclick="toggleCollapsible(this)">
+        <span class="collapsible-arrow">&#9654;</span> Advanced Options
+      </div>
+      <div class="collapsible-body" id="advanced-options">
+
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Agent Profile</label>
+            <select class="form-select" id="task-profile">
+              <option value="default">default</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Agent Model</label>
+            <input class="form-input" id="task-model" placeholder="claude-sonnet-4-20250514" value="">
+          </div>
+        </div>
+
+        <!-- Capability Builder -->
+        <div class="form-group">
+          <label class="form-label">Network Capabilities</label>
+          <div id="capabilities-list"></div>
+          <button class="btn btn-sm" onclick="addCapabilityEntry()" style="margin-top:4px">+ Add Network Grant</button>
+        </div>
+
+        <!-- Resource Limits -->
+        <div class="form-group">
+          <label class="form-label">Resource Limits</label>
+          <div class="form-row">
+            <div>
+              <label class="form-label" style="font-size:10px">Warning Runtime (seconds)</label>
+              <input type="range" id="limit-warn-runtime" min="30" max="7200" value="300" oninput="document.getElementById('limit-warn-runtime-val').textContent=this.value+'s'">
+              <div class="slider-value" id="limit-warn-runtime-val">300s</div>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px">Warning Cost (USD)</label>
+              <input class="form-input" id="limit-warn-cost" type="number" step="0.01" value="1.00" min="0">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:8px">
+            <div>
+              <label class="form-label" style="font-size:10px">Hard Limit Runtime (seconds)</label>
+              <input type="range" id="limit-hard-runtime" min="60" max="14400" value="600" oninput="document.getElementById('limit-hard-runtime-val').textContent=this.value+'s'">
+              <div class="slider-value" id="limit-hard-runtime-val">600s</div>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px">Hard Limit Cost (USD)</label>
+              <input class="form-input" id="limit-hard-cost" type="number" step="0.01" value="5.00" min="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Escalation Policy -->
+        <div class="form-group">
+          <label class="form-label">Escalation Policy</label>
+          <div class="form-row">
+            <div>
+              <label class="form-label" style="font-size:10px">Default Action</label>
+              <select class="form-select" id="esc-default-action">
+                <option value="request_human">Request Human Approval</option>
+                <option value="deny">Auto-Deny</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px">Approval Timeout (seconds)</label>
+              <input class="form-input" id="esc-timeout" type="number" value="300" min="10">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="create-task-btn" onclick="createTask()" style="margin-top:8px">Create Task</button>
     </div>
   </div>
 
-  <!-- Main layout -->
-  <div class="main">
-
-    <!-- Pending Escalations -->
-    <div class="section-escalations">
-      <div class="panel">
-        <div class="panel-header">
-          <span>Escalation Requests</span>
-          <span class="panel-badge" id="pending-count" style="display:none">0</span>
-        </div>
-        <div class="panel-body" id="escalations-body">
-          <div class="empty-state">No escalation requests yet. Waiting for agent activity...</div>
-        </div>
+  <!-- In-Flight Tasks -->
+  <div class="section">
+    <div class="section-header">
+      <h2 class="section-title">In-Flight Tasks</h2>
+      <span class="section-count" id="inflight-count">0 tasks</span>
+    </div>
+    <div class="task-cards" id="inflight-tasks">
+      <div class="empty-state" id="inflight-empty">
+        <div class="empty-state-icon">~</div>
+        No active tasks -- create one above
       </div>
     </div>
-
-    <!-- Left column: Task Status + Cost -->
-    <div class="section-task">
-      <!-- Task Status -->
-      <div class="panel" style="margin-bottom:16px">
-        <div class="panel-header"><span>Task Status</span></div>
-        <div class="panel-body" id="task-body">
-          <div class="empty-state">No manifest loaded</div>
-        </div>
-      </div>
-
-      <!-- Cost Tracker -->
-      <div class="panel">
-        <div class="panel-header"><span>Cost Tracker</span></div>
-        <div class="panel-body" id="cost-body">
-          <div class="empty-state">No cost data available</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right column: Action Log -->
-    <div class="section-log">
-      <div class="panel">
-        <div class="panel-header"><span>Action Log</span></div>
-        <div class="panel-body scrollable" id="log-body">
-          <div class="empty-state">No log entries</div>
-        </div>
-      </div>
-    </div>
-
   </div>
 
-  <script>
-    // --- State ---
-    var connected = false;
-    var knownEscalationIds = new Set();
-    var logFilter = 'all';
-    var resolvedOpen = false;
+  <!-- Completed Tasks -->
+  <div class="section">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      <span class="collapsible-arrow">&#9654;</span>
+      <span class="section-title" style="font-size:13px">Completed Tasks</span>
+      <span class="section-count" id="completed-count" style="margin-left:auto">0 tasks</span>
+    </div>
+    <div class="collapsible-body" id="completed-section">
+      <table class="data-table" id="completed-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Prompt</th>
+            <th>Status</th>
+            <th>Duration</th>
+            <th>Exit Code</th>
+            <th>Grants</th>
+            <th>Snapshots</th>
+          </tr>
+        </thead>
+        <tbody id="completed-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="completed-empty">No completed tasks yet</div>
+    </div>
+  </div>
+</div>
 
-    // --- Helpers ---
-    function relativeTime(iso) {
-      if (!iso) return '';
-      var now = Date.now();
-      var then = new Date(iso).getTime();
-      var diff = Math.max(0, now - then);
-      var s = Math.floor(diff / 1000);
-      if (s < 60) return s + 's ago';
-      var m = Math.floor(s / 60);
-      if (m < 60) return m + 'm ago';
-      var h = Math.floor(m / 60);
-      if (h < 24) return h + 'h ago';
-      var d = Math.floor(h / 24);
-      return d + 'd ago';
-    }
+<!-- ══════════════════════════════════════════════════════════
+     ESCALATIONS TAB
+     ══════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="panel-escalations">
 
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
-      var s = String(str);
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+  <!-- Pending Escalations -->
+  <div class="section">
+    <div class="section-header">
+      <h2 class="section-title">Pending Escalations</h2>
+      <span class="section-count" id="pending-esc-count">0 pending</span>
+    </div>
+    <div id="pending-escalations">
+      <div class="empty-state" id="pending-esc-empty">No pending escalation requests</div>
+    </div>
+  </div>
 
-    function formatUSD(n) {
-      if (typeof n !== 'number') return '$0.00';
-      return '$' + n.toFixed(4);
-    }
+  <!-- Resolved History -->
+  <div class="section">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      <span class="collapsible-arrow">&#9654;</span>
+      <span class="section-title" style="font-size:13px">Resolved History</span>
+      <span class="section-count" id="resolved-esc-count" style="margin-left:auto">0</span>
+    </div>
+    <div class="collapsible-body" id="resolved-section">
+      <div id="resolved-escalations"></div>
+      <div class="empty-state" id="resolved-esc-empty">No resolved escalations</div>
+    </div>
+  </div>
+</div>
 
-    function setConnected(val) {
-      connected = val;
-      var dot = document.getElementById('connection-dot');
-      var label = document.getElementById('connection-label');
-      if (val) {
-        dot.className = 'status-dot connected';
-        label.textContent = 'Connected';
-      } else {
-        dot.className = 'status-dot';
-        label.textContent = 'Disconnected';
-      }
-    }
+<!-- ══════════════════════════════════════════════════════════
+     LOGS TAB
+     ══════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="panel-logs">
+  <div class="section">
+    <div class="section-header">
+      <h2 class="section-title">Action Log</h2>
+      <label class="toggle-label">
+        <input type="checkbox" id="log-autoscroll" checked> Auto-scroll
+      </label>
+    </div>
+    <div class="filter-bar">
+      <select class="form-select" id="log-filter-task">
+        <option value="">All Tasks</option>
+      </select>
+      <select class="form-select" id="log-filter-type">
+        <option value="">All Types</option>
+        <option value="http_request">http_request</option>
+        <option value="mcp_tool_call">mcp_tool_call</option>
+        <option value="escalation_request">escalation_request</option>
+        <option value="escalation_result">escalation_result</option>
+        <option value="grant_added">grant_added</option>
+        <option value="denied">denied</option>
+      </select>
+    </div>
+    <div class="log-scroll" id="log-scroll">
+      <div id="log-entries">
+        <div class="empty-state" id="log-empty">No log entries yet</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    async function apiFetch(url) {
-      try {
-        var res = await fetch(url);
-        if (!res.ok) {
-          if (res.status === 404) return null;
-          throw new Error('HTTP ' + res.status);
+<!-- ══════════════════════════════════════════════════════════
+     SETTINGS TAB
+     ══════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="panel-settings">
+  <div class="settings-grid">
+
+    <!-- Cost Overview -->
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">Cost Overview</h2>
+      </div>
+      <div class="cost-stats" id="cost-stats">
+        <div class="cost-stat">
+          <div class="cost-stat-value" id="cost-requests">0</div>
+          <div class="cost-stat-label">Total Requests</div>
+        </div>
+        <div class="cost-stat">
+          <div class="cost-stat-value" id="cost-api">$0.00</div>
+          <div class="cost-stat-label">API Cost</div>
+        </div>
+        <div class="cost-stat">
+          <div class="cost-stat-value" id="cost-llm">$0.00</div>
+          <div class="cost-stat-label">LLM Cost</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snapshots Browser -->
+    <div class="section">
+      <div class="section-header">
+        <h2 class="section-title">Snapshots</h2>
+        <span class="section-count" id="snapshot-count">0 snapshots</span>
+      </div>
+      <div id="snapshots-container">
+        <table class="data-table" id="snapshots-table" style="display:none">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <th>Tag</th>
+              <th>Reason</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="snapshots-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="snapshots-empty">No snapshots recorded</div>
+      </div>
+    </div>
+
+    <!-- Manifest State -->
+    <div class="section settings-full">
+      <div class="section-header">
+        <h2 class="section-title">Current Manifest State</h2>
+        <button class="btn btn-sm" onclick="refreshManifestState()">Refresh</button>
+      </div>
+      <div class="json-viewer" id="manifest-state-viewer">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TASK DETAIL MODAL
+     ══════════════════════════════════════════════════════════ -->
+<div id="task-detail-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:200;overflow-y:auto">
+  <div style="max-width:900px;margin:40px auto;padding:0 20px 40px">
+    <div class="card" style="padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
+        <div>
+          <div class="task-card-id" id="detail-task-id"></div>
+          <div style="font-size:15px;color:#fff;margin-top:4px" id="detail-task-prompt"></div>
+        </div>
+        <button class="btn btn-sm" onclick="closeTaskDetail()">Close</button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <span id="detail-task-status" class="badge"></span>
+        <span style="font-size:11px;color:var(--text-dim)" id="detail-task-created"></span>
+        <span style="font-size:11px;color:var(--text-dim)" id="detail-task-duration"></span>
+      </div>
+
+      <!-- Manifest state -->
+      <div class="collapsible-header" onclick="toggleCollapsible(this)">
+        <span class="collapsible-arrow">&#9654;</span> Manifest State
+      </div>
+      <div class="collapsible-body">
+        <div class="json-viewer" id="detail-manifest-state"></div>
+      </div>
+
+      <!-- Action log -->
+      <div class="collapsible-header" onclick="toggleCollapsible(this)">
+        <span class="collapsible-arrow open">&#9654;</span> Action Log
+      </div>
+      <div class="collapsible-body open">
+        <div id="detail-action-log" class="log-scroll" style="max-height:300px"></div>
+      </div>
+
+      <!-- Escalations -->
+      <div class="collapsible-header" onclick="toggleCollapsible(this)">
+        <span class="collapsible-arrow">&#9654;</span> Escalations
+      </div>
+      <div class="collapsible-body">
+        <div id="detail-escalations"></div>
+      </div>
+
+      <!-- Snapshots -->
+      <div class="collapsible-header" onclick="toggleCollapsible(this)">
+        <span class="collapsible-arrow">&#9654;</span> Snapshots
+      </div>
+      <div class="collapsible-body">
+        <div id="detail-snapshots"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════════════ */
+const state = {
+  tasks: [],
+  escalations: [],
+  logs: [],
+  costs: [],
+  snapshots: [],
+  manifestState: null,
+  connected: false,
+  knownTaskIds: new Set(),
+  knownEscIds: new Set(),
+  knownLogIds: new Set(),
+  activeTab: 'tasks',
+  detailTaskId: null,
+};
+
+/* ══════════════════════════════════════════════════════════
+   UTILS
+   ══════════════════════════════════════════════════════════ */
+function uuid() {
+  return crypto.randomUUID();
+}
+
+function relativeTime(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 5) return 'just now';
+  if (s < 60) return s + 's ago';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  return d + 'd ago';
+}
+
+function absoluteTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString();
+}
+
+function truncate(str, len) {
+  if (!str) return '';
+  return str.length > len ? str.slice(0, len) + '...' : str;
+}
+
+function shortId(id) {
+  if (!id) return '';
+  return id.slice(0, 8);
+}
+
+function duration(startIso, endIso) {
+  if (!startIso) return '--';
+  const start = new Date(startIso).getTime();
+  const end = endIso ? new Date(endIso).getTime() : Date.now();
+  const s = Math.floor((end - start) / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  return m + 'm ' + rs + 's';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function syntaxHighlight(json) {
+  if (typeof json !== 'string') {
+    json = JSON.stringify(json, null, 2);
+  }
+  if (!json) return '<span class="json-null">null</span>';
+  return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|\bnull\b)/g, function(match) {
+      let cls = 'json-number';
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = 'json-key';
+        } else {
+          cls = 'json-string';
         }
-        setConnected(true);
-        return await res.json();
-      } catch (e) {
-        setConnected(false);
-        return null;
+      } else if (/true|false/.test(match)) {
+        cls = 'json-boolean';
+      } else if (/null/.test(match)) {
+        cls = 'json-null';
       }
+      return '<span class="' + cls + '">' + match + '</span>';
+    });
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   ══════════════════════════════════════════════════════════ */
+function showToast(message, type) {
+  type = type || 'error';
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() {
+    toast.classList.add('hiding');
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 5000);
+}
+
+/* ══════════════════════════════════════════════════════════
+   API CALLS
+   ══════════════════════════════════════════════════════════ */
+async function apiFetch(url, opts) {
+  try {
+    const res = await fetch(url, opts);
+    state.connected = true;
+    updateConnectionStatus();
+    if (!res.ok) {
+      const body = await res.json().catch(function() { return { error: res.statusText }; });
+      throw new Error(body.error || 'Request failed: ' + res.status);
+    }
+    return await res.json();
+  } catch (err) {
+    if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+      state.connected = false;
+      updateConnectionStatus();
+    }
+    throw err;
+  }
+}
+
+function updateConnectionStatus() {
+  const dot = document.getElementById('conn-dot');
+  const text = document.getElementById('conn-text');
+  if (state.connected) {
+    dot.classList.add('connected');
+    text.textContent = 'Connected';
+  } else {
+    dot.classList.remove('connected');
+    text.textContent = 'Disconnected';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ══════════════════════════════════════════════════════════ */
+function switchTab(tabName) {
+  state.activeTab = tabName;
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  document.querySelectorAll('.tab-panel').forEach(function(panel) {
+    panel.classList.toggle('active', panel.id === 'panel-' + tabName);
+  });
+  history.replaceState(null, '', '#' + tabName);
+}
+
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+});
+
+// Init from hash
+(function() {
+  var hash = location.hash.replace('#', '');
+  if (['tasks', 'escalations', 'logs', 'settings'].indexOf(hash) !== -1) {
+    switchTab(hash);
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════
+   COLLAPSIBLE
+   ══════════════════════════════════════════════════════════ */
+function toggleCollapsible(header) {
+  const arrow = header.querySelector('.collapsible-arrow');
+  const body = header.nextElementSibling;
+  if (body && body.classList.contains('collapsible-body')) {
+    arrow.classList.toggle('open');
+    body.classList.toggle('open');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   CAPABILITY BUILDER
+   ══════════════════════════════════════════════════════════ */
+let capabilityCounter = 0;
+
+function addCapabilityEntry() {
+  const id = capabilityCounter++;
+  const container = document.getElementById('capabilities-list');
+  const entry = document.createElement('div');
+  entry.className = 'capability-entry';
+  entry.id = 'cap-' + id;
+  entry.innerHTML = '<div class="capability-entry-header">' +
+    '<span style="font-size:11px;color:var(--text-dim)">Network Grant #' + (id + 1) + '</span>' +
+    '<button class="btn btn-sm btn-danger" onclick="removeCapability(' + id + ')">Remove</button>' +
+    '</div>' +
+    '<div class="form-row-3">' +
+    '<div class="form-group"><label class="form-label">Name</label><input class="form-input cap-name" placeholder="e.g. github-api"></div>' +
+    '<div class="form-group"><label class="form-label">Base URL</label><input class="form-input cap-baseurl" placeholder="https://api.github.com"></div>' +
+    '<div class="form-group"><label class="form-label">Allowed Paths (comma-sep)</label><input class="form-input cap-paths" placeholder="/repos/*,/users/*"></div>' +
+    '</div>' +
+    '<div class="form-group"><label class="form-label">Allowed Methods</label>' +
+    '<div class="checkbox-group">' +
+    '<label class="checkbox-label"><input type="checkbox" class="cap-method" value="GET" checked> GET</label>' +
+    '<label class="checkbox-label"><input type="checkbox" class="cap-method" value="POST"> POST</label>' +
+    '<label class="checkbox-label"><input type="checkbox" class="cap-method" value="PUT"> PUT</label>' +
+    '<label class="checkbox-label"><input type="checkbox" class="cap-method" value="DELETE"> DELETE</label>' +
+    '<label class="checkbox-label"><input type="checkbox" class="cap-method" value="PATCH"> PATCH</label>' +
+    '</div></div>' +
+    '<div class="form-group">' +
+    '<label class="checkbox-label"><input type="checkbox" class="cap-is-mcp" onchange="toggleMcpFields(this,' + id + ')"> MCP Server</label>' +
+    '</div>' +
+    '<div class="form-group" id="cap-mcp-' + id + '" style="display:none">' +
+    '<label class="form-label">Allowed Tools (comma-sep)</label>' +
+    '<input class="form-input cap-tools" placeholder="read_file,write_file">' +
+    '</div>' +
+    '<div class="collapsible-header" onclick="toggleCollapsible(this)">' +
+    '<span class="collapsible-arrow">&#9654;</span> Auth Credentials' +
+    '</div>' +
+    '<div class="collapsible-body">' +
+    '<div class="cap-auth-list"></div>' +
+    '<button class="btn btn-sm" onclick="addAuthPair(' + id + ')" style="margin-top:4px">+ Add Credential</button>' +
+    '</div>';
+  container.appendChild(entry);
+}
+
+function removeCapability(id) {
+  const el = document.getElementById('cap-' + id);
+  if (el) el.remove();
+}
+
+function toggleMcpFields(checkbox, id) {
+  document.getElementById('cap-mcp-' + id).style.display = checkbox.checked ? 'block' : 'none';
+}
+
+function addAuthPair(capId) {
+  const entry = document.getElementById('cap-' + capId);
+  const list = entry.querySelector('.cap-auth-list');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.marginBottom = '4px';
+  row.innerHTML = '<div><input class="form-input auth-placeholder" placeholder="{{API_KEY}}"></div>' +
+    '<div><input class="form-input auth-secretref" placeholder="secret-ref-name"></div>';
+  list.appendChild(row);
+}
+
+function gatherCapabilities() {
+  const entries = document.querySelectorAll('.capability-entry');
+  const caps = [];
+  entries.forEach(function(entry) {
+    const name = entry.querySelector('.cap-name').value.trim();
+    const baseURL = entry.querySelector('.cap-baseurl').value.trim();
+    const pathsStr = entry.querySelector('.cap-paths').value.trim();
+    const paths = pathsStr ? pathsStr.split(',').map(function(s) { return s.trim(); }) : [];
+    const methods = [];
+    entry.querySelectorAll('.cap-method:checked').forEach(function(cb) { methods.push(cb.value); });
+    const isMcp = entry.querySelector('.cap-is-mcp').checked;
+
+    const grant = { name: name || 'unnamed', baseURL: baseURL, allowedPaths: paths, allowedMethods: methods };
+
+    if (isMcp) {
+      const toolsStr = entry.querySelector('.cap-tools').value.trim();
+      grant.allowedTools = toolsStr ? toolsStr.split(',').map(function(s) { return s.trim(); }) : [];
     }
 
-    function toggleElement(el) {
-      el.classList.toggle('open');
-    }
+    // Auth
+    const authPairs = [];
+    entry.querySelectorAll('.cap-auth-list .form-row').forEach(function(row) {
+      const ph = row.querySelector('.auth-placeholder').value.trim();
+      const sr = row.querySelector('.auth-secretref').value.trim();
+      if (ph && sr) authPairs.push({ placeholder: ph, secretRef: sr });
+    });
+    if (authPairs.length) grant.auth = authPairs;
 
-    // --- Render: Escalations ---
-    function renderEscalations(data) {
-      var body = document.getElementById('escalations-body');
-      var badge = document.getElementById('pending-count');
+    caps.push(grant);
+  });
+  return caps;
+}
 
-      if (!data || data.length === 0) {
-        body.innerHTML = '<div class="empty-state">No escalation requests yet. Waiting for agent activity...</div>';
-        badge.style.display = 'none';
-        return;
+/* ══════════════════════════════════════════════════════════
+   CREATE TASK
+   ══════════════════════════════════════════════════════════ */
+async function createTask() {
+  const promptEl = document.getElementById('task-prompt');
+  const prompt = promptEl.value.trim();
+  if (!prompt) {
+    promptEl.classList.add('error');
+    promptEl.focus();
+    showToast('Task prompt is required', 'error');
+    return;
+  }
+  promptEl.classList.remove('error');
+
+  const capabilities = gatherCapabilities();
+  const profile = document.getElementById('task-profile').value;
+  const model = document.getElementById('task-model').value.trim() || 'claude-sonnet-4-20250514';
+
+  const manifest = {
+    id: uuid(),
+    createdAt: new Date().toISOString(),
+    createdBy: 'ui',
+    capabilities: {
+      network: capabilities
+    },
+    limits: {
+      warning: {
+        runtimeSeconds: parseInt(document.getElementById('limit-warn-runtime').value),
+        costUSD: parseFloat(document.getElementById('limit-warn-cost').value) || 1
+      },
+      limit: {
+        runtimeSeconds: parseInt(document.getElementById('limit-hard-runtime').value),
+        costUSD: parseFloat(document.getElementById('limit-hard-cost').value) || 5
       }
-
-      var pending = data.filter(function(e) { return e.status === 'pending'; });
-      var resolved = data.filter(function(e) { return e.status !== 'pending'; });
-
-      if (pending.length > 0) {
-        badge.textContent = pending.length;
-        badge.style.display = '';
-      } else {
-        badge.style.display = 'none';
-      }
-
-      var html = '';
-
-      // Pending
-      pending.forEach(function(esc) {
-        var isNew = !knownEscalationIds.has(esc.id);
-        var pulseClass = isNew ? ' new-pulse' : '';
-        knownEscalationIds.add(esc.id);
-
-        html += '<div class="escalation-card pending' + pulseClass + '" id="esc-' + escapeHtml(esc.id) + '">';
-        html += renderEscalationContent(esc, true);
-        html += '</div>';
-      });
-
-      // Resolved
-      if (resolved.length > 0) {
-        html += '<div class="resolved-toggle" onclick="resolvedOpen=!resolvedOpen;document.getElementById(\'resolved-list\').classList.toggle(\'open\')">';
-        html += '&#9654; Resolved (' + resolved.length + ')';
-        html += '</div>';
-        html += '<div class="resolved-list' + (resolvedOpen ? ' open' : '') + '" id="resolved-list">';
-        resolved.forEach(function(esc) {
-          html += '<div class="escalation-card ' + escapeHtml(esc.status) + '">';
-          html += renderEscalationContent(esc, false);
-          html += '</div>';
-        });
-        html += '</div>';
-      }
-
-      body.innerHTML = html;
-    }
-
-    function renderEscalationContent(esc, showActions) {
-      var cap = esc.capability || {};
-      var html = '';
-
-      // Meta row
-      html += '<div class="escalation-meta">';
-      html += '<span class="escalation-status ' + escapeHtml(esc.status) + '">' + escapeHtml(esc.status) + '</span>';
-      html += '<span class="escalation-time" title="' + escapeHtml(esc.requestedAt) + '">' + relativeTime(esc.requestedAt) + '</span>';
-      html += '</div>';
-
-      // Reason
-      html += '<div class="escalation-reason">' + escapeHtml(esc.reason) + '</div>';
-
-      // Capability summary tags
-      html += '<div class="escalation-capability">';
-      html += '<div class="capability-summary">';
-      if (cap.name) html += '<span class="cap-tag name">' + escapeHtml(cap.name) + '</span>';
-      if (cap.baseURL) html += '<span class="cap-tag url">' + escapeHtml(cap.baseURL) + '</span>';
-      if (cap.allowedMethods) {
-        cap.allowedMethods.forEach(function(m) {
-          html += '<span class="cap-tag method">' + escapeHtml(m) + '</span>';
-        });
-      }
-      if (cap.allowedTools) {
-        cap.allowedTools.forEach(function(t) {
-          html += '<span class="cap-tag tool">tool:' + escapeHtml(t) + '</span>';
-        });
-      }
-      html += '</div>';
-
-      // Paths
-      if (cap.allowedPaths && cap.allowedPaths.length > 0) {
-        html += '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">Paths: ' + cap.allowedPaths.map(escapeHtml).join(', ') + '</div>';
-      }
-
-      // JSON toggle
-      var jsonId = 'cap-json-' + escapeHtml(esc.id);
-      html += '<div class="capability-toggle" onclick="toggleElement(document.getElementById(\'' + jsonId + '\'))">&#9654; Show full capability JSON</div>';
-      html += '<div class="capability-json" id="' + jsonId + '">' + escapeHtml(JSON.stringify(cap, null, 2)) + '</div>';
-      html += '</div>';
-
-      // Action buttons
-      if (showActions) {
-        html += '<div class="escalation-actions">';
-        html += '<button class="btn btn-approve" onclick="resolveEscalation(\'' + escapeHtml(esc.id) + '\', \'approve\')">Approve</button>';
-        html += '<button class="btn btn-deny" onclick="resolveEscalation(\'' + escapeHtml(esc.id) + '\', \'deny\')">Deny</button>';
-
-        html += '<div class="action-group">';
-        html += '<span class="action-label">Expires after</span>';
-        html += '<select class="action-input" id="expiry-' + escapeHtml(esc.id) + '">';
-        html += '<option value="">No expiry</option>';
-        html += '<option value="1">1 hour</option>';
-        html += '<option value="4">4 hours</option>';
-        html += '<option value="24" selected>24 hours</option>';
-        html += '</select>';
-        html += '</div>';
-
-        html += '<div class="action-group">';
-        html += '<span class="action-label">Approved by</span>';
-        html += '<input class="action-input" id="approver-' + escapeHtml(esc.id) + '" value="admin" style="width:100px">';
-        html += '</div>';
-
-        html += '</div>';
-      }
-
-      return html;
-    }
-
-    async function resolveEscalation(id, action) {
-      var approverEl = document.getElementById('approver-' + id);
-      var expiryEl = document.getElementById('expiry-' + id);
-      var approvedBy = approverEl ? approverEl.value || 'admin' : 'admin';
-      var expiryHours = expiryEl ? expiryEl.value : '';
-
-      var body = { action: action, approvedBy: approvedBy };
-      if (expiryHours && action === 'approve') {
-        var exp = new Date(Date.now() + parseInt(expiryHours) * 3600000);
-        body.expiresAt = exp.toISOString();
-      }
-
-      try {
-        await fetch('/api/escalations/' + encodeURIComponent(id) + '/resolve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        pollEscalations();
-      } catch (e) {
-        console.error('Failed to resolve escalation:', e);
+    },
+    escalation: {
+      defaultAction: document.getElementById('esc-default-action').value,
+      approvalTimeoutSeconds: parseInt(document.getElementById('esc-timeout').value) || 300,
+      snapshotOnPause: true
+    },
+    environment: {
+      snapshots: [],
+      files: {},
+      agent: {
+        profile: profile,
+        prompt: prompt
       }
     }
+  };
 
-    // --- Render: Task Status ---
-    function renderTaskStatus(state) {
-      var body = document.getElementById('task-body');
+  const btn = document.getElementById('create-task-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
 
-      if (!state) {
-        body.innerHTML = '<div class="empty-state">No manifest loaded</div>';
-        return;
-      }
+  try {
+    await apiFetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt, manifest: manifest })
+    });
+    showToast('Task created successfully', 'success');
+    promptEl.value = '';
+    refreshTasks();
+  } catch (err) {
+    showToast('Failed to create task: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Task';
+  }
+}
 
-      var m = state.manifest || {};
-      var html = '';
+/* ══════════════════════════════════════════════════════════
+   RENDER TASKS
+   ══════════════════════════════════════════════════════════ */
+function renderInflightTasks(tasks) {
+  const container = document.getElementById('inflight-tasks');
+  const empty = document.getElementById('inflight-empty');
+  const countEl = document.getElementById('inflight-count');
 
-      html += '<div class="info-row"><span class="info-label">Task ID</span><span class="info-value">' + escapeHtml(m.id) + '</span></div>';
-      html += '<div class="info-row"><span class="info-label">Created By</span><span class="info-value">' + escapeHtml(m.createdBy) + '</span></div>';
-      html += '<div class="info-row"><span class="info-label">Created At</span><span class="info-value" title="' + escapeHtml(m.createdAt) + '">' + relativeTime(m.createdAt) + '</span></div>';
+  const inflight = tasks.filter(function(t) { return t.status === 'pending' || t.status === 'running'; });
+  countEl.textContent = inflight.length + ' task' + (inflight.length !== 1 ? 's' : '');
 
-      if (m.limits) {
-        var lim = m.limits;
-        html += '<div class="info-row"><span class="info-label">Runtime Limit</span><span class="info-value">' + (lim.limit ? lim.limit.runtimeSeconds + 's' : '-') + '</span></div>';
-        html += '<div class="info-row"><span class="info-label">Cost Limit</span><span class="info-value">' + (lim.limit ? formatUSD(lim.limit.costUSD) : '-') + '</span></div>';
-        html += '<div class="info-row"><span class="info-label">Runtime Warning</span><span class="info-value">' + (lim.warning ? lim.warning.runtimeSeconds + 's' : '-') + '</span></div>';
-        html += '<div class="info-row"><span class="info-label">Cost Warning</span><span class="info-value">' + (lim.warning ? formatUSD(lim.warning.costUSD) : '-') + '</span></div>';
-      }
+  if (inflight.length === 0) {
+    container.innerHTML = '';
+    container.appendChild(empty);
+    empty.style.display = '';
+    return;
+  }
 
-      if (m.escalation) {
-        html += '<div class="info-row"><span class="info-label">Escalation Policy</span><span class="info-value">' + escapeHtml(m.escalation.defaultAction) + '</span></div>';
-        html += '<div class="info-row"><span class="info-label">Approval Timeout</span><span class="info-value">' + (m.escalation.approvalTimeoutSeconds || '-') + 's</span></div>';
-      }
+  empty.style.display = 'none';
 
-      // Capabilities
-      if (m.capabilities && m.capabilities.network && m.capabilities.network.length > 0) {
-        html += '<div class="subsection-title">Capabilities (' + m.capabilities.network.length + ')</div>';
-        html += '<div class="capability-list">';
-        m.capabilities.network.forEach(function(cap, i) {
-          var itemId = 'task-cap-' + i;
-          html += '<div class="capability-item">';
-          html += '<div class="capability-item-header" onclick="toggleElement(document.getElementById(\'' + itemId + '\'))">';
-          html += '<span>' + escapeHtml(cap.name) + '</span>';
-          html += '<span style="color:var(--text-muted);font-size:11px">' + escapeHtml(cap.baseURL) + '</span>';
-          html += '</div>';
-          html += '<div class="capability-item-body" id="' + itemId + '">' + escapeHtml(JSON.stringify(cap, null, 2)) + '</div>';
-          html += '</div>';
-        });
-        html += '</div>';
-      }
+  // Track which cards exist
+  const existingIds = new Set();
+  container.querySelectorAll('.card[data-task-id]').forEach(function(c) { existingIds.add(c.dataset.taskId); });
 
-      // Active grants
-      if (state.grants && state.grants.length > 0) {
-        html += '<div class="subsection-title">Active Grants (' + state.grants.length + ')</div>';
-        state.grants.forEach(function(g) {
-          html += '<div class="grant-item">';
-          html += '<div><strong>' + escapeHtml(g.capability.name) + '</strong> &mdash; ' + escapeHtml(g.capability.baseURL) + '</div>';
-          html += '<div style="margin-top:2px;color:var(--text-dim);font-size:10px">' + escapeHtml(g.reason) + '</div>';
-          html += '<div class="grant-meta">Approved by ' + escapeHtml(g.approvedBy) + ' ' + relativeTime(g.approvedAt);
-          if (g.expiresAt) html += ' &middot; Expires ' + relativeTime(g.expiresAt);
-          html += '</div>';
-          html += '</div>';
-        });
-      }
+  // Remove cards no longer in-flight
+  container.querySelectorAll('.card[data-task-id]').forEach(function(c) {
+    if (!inflight.find(function(t) { return t.id === c.dataset.taskId; })) {
+      c.remove();
+    }
+  });
 
-      body.innerHTML = html;
+  inflight.forEach(function(task) {
+    const isNew = !state.knownTaskIds.has(task.id);
+    state.knownTaskIds.add(task.id);
+
+    let card = container.querySelector('.card[data-task-id="' + task.id + '"]');
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'card' + (isNew ? ' highlight-new' : '');
+      card.dataset.taskId = task.id;
+      container.appendChild(card);
     }
 
-    // --- Render: Cost ---
-    function renderCosts(data, state) {
-      var body = document.getElementById('cost-body');
+    const capCount = task.manifestState ? (task.manifestState.manifest.capabilities.network || []).length : 0;
+    const grantCount = task.manifestState ? (task.manifestState.grants || []).length : 0;
+    const pendingEsc = state.escalations.filter(function(e) { return e.taskId === task.id && e.status === 'pending'; }).length;
+    const logCount = state.logs.filter(function(l) { return l.taskId === task.id; }).length;
 
-      if (!data || Object.keys(data).length === 0) {
-        body.innerHTML = '<div class="empty-state">No cost data available</div>';
-        return;
-      }
+    card.innerHTML = '<div class="task-card-header">' +
+      '<span class="badge badge-' + task.status + '">' + task.status + '</span>' +
+      '<span class="task-card-id">' + shortId(task.id) + '</span>' +
+      '</div>' +
+      '<div class="task-card-prompt truncated" onclick="openTaskDetail(\'' + task.id + '\')" title="Click for details">' + escapeHtml(task.prompt) + '</div>' +
+      '<div class="task-card-meta">' +
+      '<span class="task-card-meta-item">' + relativeTime(task.createdAt) + '</span>' +
+      '<span class="task-card-meta-item">Caps: ' + capCount + '</span>' +
+      '<span class="task-card-meta-item">Grants: ' + grantCount + '</span>' +
+      '<span class="task-card-meta-item">Log: ' + logCount + '</span>' +
+      (pendingEsc > 0 ? '<span class="task-card-meta-item"><span class="pulse-dot"></span>' + pendingEsc + ' escalation' + (pendingEsc > 1 ? 's' : '') + '</span>' : '') +
+      '</div>';
+  });
+}
 
-      var totalRequests = 0;
-      var totalEstimated = 0;
-      var totalLLM = 0;
+function renderCompletedTasks(tasks) {
+  const tbody = document.getElementById('completed-tbody');
+  const empty = document.getElementById('completed-empty');
+  const countEl = document.getElementById('completed-count');
+  const table = document.getElementById('completed-table');
 
-      Object.keys(data).forEach(function(taskId) {
-        var c = data[taskId];
-        totalRequests += c.requests || 0;
-        totalEstimated += c.estimatedCostUSD || 0;
-        totalLLM += c.reportedLLMCostUSD || 0;
-      });
+  const completed = tasks.filter(function(t) { return t.status === 'completed' || t.status === 'failed'; });
+  countEl.textContent = completed.length + ' task' + (completed.length !== 1 ? 's' : '');
 
-      var totalCost = totalEstimated + totalLLM;
+  if (completed.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
 
-      // Determine warning state
-      var costClass = '';
-      if (state && state.manifest && state.manifest.limits) {
-        var lim = state.manifest.limits;
-        if (lim.limit && totalCost >= lim.limit.costUSD) costClass = ' danger';
-        else if (lim.warning && totalCost >= lim.warning.costUSD) costClass = ' warning';
-      }
+  table.style.display = '';
+  empty.style.display = 'none';
+  tbody.innerHTML = '';
 
-      var html = '<div class="cost-grid">';
-      html += '<div class="cost-card"><div class="cost-value">' + totalRequests + '</div><div class="cost-label">Total Requests</div></div>';
-      html += '<div class="cost-card"><div class="cost-value">' + formatUSD(totalEstimated) + '</div><div class="cost-label">Est. API Cost</div></div>';
-      html += '<div class="cost-card"><div class="cost-value">' + formatUSD(totalLLM) + '</div><div class="cost-label">Reported LLM Cost</div></div>';
-      html += '<div class="cost-card"><div class="cost-value' + costClass + '">' + formatUSD(totalCost) + '</div><div class="cost-label">Total Cost</div></div>';
-      html += '</div>';
+  completed.forEach(function(task) {
+    const grantCount = task.manifestState ? (task.manifestState.grants || []).length : 0;
+    const snapCount = (task.snapshots || []).length;
+    const tr = document.createElement('tr');
+    tr.className = task.status === 'failed' ? 'row-failed' : '';
+    tr.style.cursor = 'pointer';
+    tr.onclick = function() { openTaskDetail(task.id); };
+    tr.innerHTML = '<td><span class="badge-task-id">' + shortId(task.id) + '</span></td>' +
+      '<td class="text-truncate">' + escapeHtml(truncate(task.prompt, 60)) + '</td>' +
+      '<td><span class="badge badge-' + task.status + '">' + task.status + '</span></td>' +
+      '<td>' + duration(task.startedAt || task.createdAt, task.completedAt) + '</td>' +
+      '<td>' + (task.exitCode !== undefined ? task.exitCode : '--') + '</td>' +
+      '<td>' + grantCount + '</td>' +
+      '<td>' + snapCount + '</td>';
+    tbody.appendChild(tr);
+  });
+}
 
-      body.innerHTML = html;
+/* ══════════════════════════════════════════════════════════
+   TASK DETAIL MODAL
+   ══════════════════════════════════════════════════════════ */
+async function openTaskDetail(taskId) {
+  state.detailTaskId = taskId;
+  const overlay = document.getElementById('task-detail-overlay');
+  overlay.style.display = 'block';
+
+  document.getElementById('detail-task-id').textContent = 'Task ' + shortId(taskId);
+  document.getElementById('detail-task-prompt').textContent = 'Loading...';
+  document.getElementById('detail-task-status').textContent = '';
+  document.getElementById('detail-task-created').textContent = '';
+  document.getElementById('detail-task-duration').textContent = '';
+  document.getElementById('detail-manifest-state').innerHTML = '';
+  document.getElementById('detail-action-log').innerHTML = '';
+  document.getElementById('detail-escalations').innerHTML = '';
+  document.getElementById('detail-snapshots').innerHTML = '';
+
+  try {
+    const data = await apiFetch('/api/tasks/' + taskId);
+    const task = data.task;
+
+    document.getElementById('detail-task-id').textContent = 'Task ' + shortId(task.id);
+    document.getElementById('detail-task-prompt').textContent = task.prompt;
+    const statusBadge = document.getElementById('detail-task-status');
+    statusBadge.textContent = task.status;
+    statusBadge.className = 'badge badge-' + task.status;
+    document.getElementById('detail-task-created').textContent = 'Created ' + relativeTime(task.createdAt);
+    document.getElementById('detail-task-duration').textContent = 'Duration: ' + duration(task.startedAt || task.createdAt, task.completedAt);
+
+    // Manifest state
+    if (task.manifestState) {
+      document.getElementById('detail-manifest-state').innerHTML = syntaxHighlight(task.manifestState);
+    } else {
+      document.getElementById('detail-manifest-state').innerHTML = '<span class="json-null">No manifest attached</span>';
     }
 
-    // --- Render: Action Log ---
-    function renderLog(data) {
-      var body = document.getElementById('log-body');
-
-      if (!data || data.length === 0) {
-        body.innerHTML = '<div class="empty-state">No log entries</div>';
-        return;
-      }
-
-      var html = '';
-
-      // Filter controls
-      html += '<div class="log-controls">';
-      html += '<span class="action-label">Filter:</span>';
-      html += '<select class="log-filter" id="log-filter-select" onchange="logFilter=this.value;pollLog()">';
-      html += '<option value="all"' + (logFilter === 'all' ? ' selected' : '') + '>All</option>';
-      html += '<option value="http_request"' + (logFilter === 'http_request' ? ' selected' : '') + '>HTTP Request</option>';
-      html += '<option value="mcp_tool_call"' + (logFilter === 'mcp_tool_call' ? ' selected' : '') + '>MCP Tool Call</option>';
-      html += '<option value="escalation_request"' + (logFilter === 'escalation_request' ? ' selected' : '') + '>Escalation Request</option>';
-      html += '<option value="escalation_result"' + (logFilter === 'escalation_result' ? ' selected' : '') + '>Escalation Result</option>';
-      html += '<option value="grant_added"' + (logFilter === 'grant_added' ? ' selected' : '') + '>Grant Added</option>';
-      html += '<option value="denied"' + (logFilter === 'denied' ? ' selected' : '') + '>Denied</option>';
-      html += '</select>';
-      html += '</div>';
-
-      // Filter entries
-      var entries = data;
-      if (logFilter !== 'all') {
-        entries = data.filter(function(e) { return e.type === logFilter; });
-      }
-
-      // Sort newest first
-      entries = entries.slice().sort(function(a, b) {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      });
-
-      if (entries.length === 0) {
-        html += '<div class="empty-state">No matching entries</div>';
-      } else {
-        entries.forEach(function(entry) {
-          var typeClass = entry.type;
-          // For escalation_result, check details for sub-styling
-          if (entry.type === 'escalation_result') {
-            var action = entry.details && entry.details.action;
-            if (action === 'approve') typeClass = 'escalation_result_approved';
-            else if (action === 'deny') typeClass = 'escalation_result_denied';
-          }
-
-          var displayType = entry.type.replace(/_/g, ' ');
-          var details = '';
-          if (entry.details) {
-            var d = entry.details;
-            if (entry.type === 'http_request') {
-              details = (d.method || '') + ' ' + (d.url || d.path || '');
-              if (d.status) details += ' -> ' + d.status;
-            } else if (entry.type === 'mcp_tool_call') {
-              details = (d.tool || d.name || '') + (d.server ? ' @ ' + d.server : '');
-            } else if (entry.type === 'escalation_request') {
-              details = d.reason || JSON.stringify(d);
-            } else if (entry.type === 'escalation_result') {
-              details = (d.action || '') + ' by ' + (d.approvedBy || '');
-            } else if (entry.type === 'grant_added') {
-              details = (d.name || (d.capability && d.capability.name) || '') + ' ' + (d.baseURL || (d.capability && d.capability.baseURL) || '');
-            } else if (entry.type === 'denied') {
-              details = d.reason || d.url || JSON.stringify(d);
-            } else {
-              details = JSON.stringify(d);
-            }
-          }
-
-          html += '<div class="log-entry">';
-          html += '<span class="log-time" title="' + escapeHtml(entry.timestamp) + '">' + relativeTime(entry.timestamp) + '</span>';
-          html += '<span class="log-type ' + escapeHtml(typeClass) + '">' + escapeHtml(displayType) + '</span>';
-          html += '<span class="log-details">' + escapeHtml(details) + '</span>';
-          html += '</div>';
-        });
-      }
-
-      body.innerHTML = html;
+    // Action log
+    const logContainer = document.getElementById('detail-action-log');
+    if (data.log && data.log.length) {
+      logContainer.innerHTML = data.log.map(function(entry) {
+        return '<div class="log-entry">' +
+          '<span class="log-timestamp" title="' + absoluteTime(entry.timestamp) + '">' + relativeTime(entry.timestamp) + '</span>' +
+          '<span class="badge badge-type badge-' + entry.type + '">' + entry.type + '</span>' +
+          '<span class="log-details-toggle" onclick="this.nextElementSibling.classList.toggle(\'open\')">[details]</span>' +
+          '<div class="log-details"><div class="json-viewer" style="max-height:200px">' + syntaxHighlight(entry.details) + '</div></div>' +
+          '</div>';
+      }).join('');
+    } else {
+      logContainer.innerHTML = '<div class="empty-state">No log entries for this task</div>';
     }
 
-    // --- Polling ---
-    var cachedState = null;
-
-    async function pollState() {
-      var state = await apiFetch('/api/state');
-      cachedState = state;
-      renderTaskStatus(state);
+    // Escalations
+    const escContainer = document.getElementById('detail-escalations');
+    if (data.escalations && data.escalations.length) {
+      escContainer.innerHTML = data.escalations.map(function(e) {
+        return '<div class="card" style="padding:10px;margin-bottom:6px">' +
+          '<span class="badge badge-' + e.status + '">' + e.status + '</span> ' +
+          '<span style="font-size:12px">' + escapeHtml(e.reason) + '</span>' +
+          '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">' +
+          escapeHtml(e.capability.name || '') + ' - ' + (e.capability.baseURL || '') +
+          '</div></div>';
+      }).join('');
+    } else {
+      escContainer.innerHTML = '<div class="empty-state">No escalations for this task</div>';
     }
 
-    async function pollEscalations() {
-      var data = await apiFetch('/api/escalations');
-      if (data) renderEscalations(data);
+    // Snapshots
+    const snapContainer = document.getElementById('detail-snapshots');
+    const snaps = task.snapshots || [];
+    if (snaps.length) {
+      snapContainer.innerHTML = '<table class="data-table"><thead><tr><th>Tag</th><th>Reason</th><th>Created</th></tr></thead><tbody>' +
+        snaps.map(function(s) {
+          return '<tr><td>' + escapeHtml(s.tag) + '</td><td>' + escapeHtml(s.reason) + '</td><td>' + relativeTime(s.createdAt) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    } else {
+      snapContainer.innerHTML = '<div class="empty-state">No snapshots</div>';
     }
+  } catch (err) {
+    document.getElementById('detail-task-prompt').textContent = 'Error loading task: ' + err.message;
+  }
+}
 
-    async function pollLog() {
-      var data = await apiFetch('/api/log');
-      if (data) renderLog(data);
+function closeTaskDetail() {
+  state.detailTaskId = null;
+  document.getElementById('task-detail-overlay').style.display = 'none';
+}
+
+// Close on overlay click
+document.getElementById('task-detail-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeTaskDetail();
+});
+
+/* ══════════════════════════════════════════════════════════
+   ESCALATIONS
+   ══════════════════════════════════════════════════════════ */
+function renderEscalations(escalations) {
+  const pendingContainer = document.getElementById('pending-escalations');
+  const pendingEmpty = document.getElementById('pending-esc-empty');
+  const pendingCount = document.getElementById('pending-esc-count');
+  const resolvedContainer = document.getElementById('resolved-escalations');
+  const resolvedEmpty = document.getElementById('resolved-esc-empty');
+  const resolvedCount = document.getElementById('resolved-esc-count');
+  const escBadge = document.getElementById('esc-badge');
+
+  const pending = escalations.filter(function(e) { return e.status === 'pending'; });
+  const resolved = escalations.filter(function(e) { return e.status !== 'pending'; });
+
+  pendingCount.textContent = pending.length + ' pending';
+
+  // Badge on tab
+  if (pending.length > 0) {
+    escBadge.textContent = pending.length;
+    escBadge.style.display = '';
+  } else {
+    escBadge.style.display = 'none';
+  }
+
+  // Pending
+  if (pending.length === 0) {
+    pendingContainer.innerHTML = '';
+    pendingContainer.appendChild(pendingEmpty);
+    pendingEmpty.style.display = '';
+  } else {
+    pendingEmpty.style.display = 'none';
+    // Keep existing DOM where possible, rebuild for simplicity
+    const html = pending.map(function(esc) {
+      const isNew = !state.knownEscIds.has(esc.id);
+      state.knownEscIds.add(esc.id);
+      return '<div class="card' + (isNew ? ' highlight-new' : '') + '" data-esc-id="' + esc.id + '">' +
+        '<div class="escalation-card">' +
+        '<div>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
+        '<span class="pulse-dot"></span>' +
+        '<span class="badge badge-pending">pending</span>' +
+        (esc.taskId ? '<span class="badge-task-id" onclick="openTaskDetail(\'' + esc.taskId + '\')" title="View task">Task ' + shortId(esc.taskId) + '</span>' : '') +
+        '<span style="font-size:11px;color:var(--text-dim)">' + relativeTime(esc.requestedAt) + '</span>' +
+        '</div>' +
+        '<div class="escalation-reason">' + escapeHtml(esc.reason) + '</div>' +
+        '<div class="escalation-capability">' +
+        '<strong>' + escapeHtml(esc.capability.name || 'unnamed') + '</strong> &mdash; ' +
+        escapeHtml(esc.capability.baseURL || '') + '<br>' +
+        'Paths: ' + (esc.capability.allowedPaths || []).join(', ') + '<br>' +
+        'Methods: ' + (esc.capability.allowedMethods || []).join(', ') +
+        (esc.capability.allowedTools ? '<br>Tools: ' + esc.capability.allowedTools.join(', ') : '') +
+        '</div>' +
+        '</div>' +
+        '<div class="escalation-actions">' +
+        '<div class="expiry-input">' +
+        '<input class="form-input" id="expiry-' + esc.id + '" type="number" value="3600" min="60" step="60">' +
+        '<span>sec</span>' +
+        '</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="resolveEscalation(\'' + esc.id + '\', \'approve\')">Approve</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="resolveEscalation(\'' + esc.id + '\', \'deny\')">Deny</button>' +
+        '</div>' +
+        '</div></div>';
+    }).join('');
+    pendingContainer.innerHTML = html;
+  }
+
+  // Resolved
+  resolvedCount.textContent = resolved.length;
+  if (resolved.length === 0) {
+    resolvedContainer.innerHTML = '';
+    resolvedContainer.appendChild(resolvedEmpty);
+    resolvedEmpty.style.display = '';
+  } else {
+    resolvedEmpty.style.display = 'none';
+    resolvedContainer.innerHTML = resolved.map(function(esc) {
+      return '<div class="card" style="padding:10px;margin-bottom:6px">' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">' +
+        '<span class="badge badge-' + esc.status + '">' + esc.status + '</span>' +
+        (esc.taskId ? '<span class="badge-task-id" onclick="openTaskDetail(\'' + esc.taskId + '\')" title="View task">Task ' + shortId(esc.taskId) + '</span>' : '') +
+        '<span style="font-size:11px;color:var(--text-dim)">' + relativeTime(esc.requestedAt) + '</span>' +
+        '</div>' +
+        '<div style="font-size:12px">' + escapeHtml(esc.reason) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-dim)">' + escapeHtml(esc.capability.name || '') + ' &mdash; ' + escapeHtml(esc.capability.baseURL || '') + '</div>' +
+        '</div>';
+    }).join('');
+  }
+}
+
+async function resolveEscalation(id, action) {
+  const expiryInput = document.getElementById('expiry-' + id);
+  const expirySec = expiryInput ? parseInt(expiryInput.value) : 3600;
+  const expiresAt = new Date(Date.now() + expirySec * 1000).toISOString();
+
+  try {
+    await apiFetch('/api/escalations/' + id + '/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action,
+        approvedBy: 'ui-operator',
+        expiresAt: action === 'approve' ? expiresAt : undefined
+      })
+    });
+    showToast('Escalation ' + action + 'd', 'success');
+    refreshEscalations();
+  } catch (err) {
+    showToast('Failed to resolve: ' + err.message, 'error');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   LOGS
+   ══════════════════════════════════════════════════════════ */
+function renderLogs(logs) {
+  const container = document.getElementById('log-entries');
+  const empty = document.getElementById('log-empty');
+  const filterTask = document.getElementById('log-filter-task').value;
+  const filterType = document.getElementById('log-filter-type').value;
+
+  let filtered = logs;
+  if (filterTask) {
+    filtered = filtered.filter(function(l) { return l.taskId === filterTask; });
+  }
+  if (filterType) {
+    filtered = filtered.filter(function(l) { return l.type === filterType; });
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '';
+    container.appendChild(empty);
+    empty.style.display = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  container.innerHTML = filtered.map(function(entry) {
+    const isNew = !state.knownLogIds.has(entry.id);
+    state.knownLogIds.add(entry.id);
+    return '<div class="log-entry' + (isNew ? ' highlight-new' : '') + '">' +
+      '<span class="log-timestamp" title="' + absoluteTime(entry.timestamp) + '">' + relativeTime(entry.timestamp) + '</span>' +
+      '<span class="badge-task-id" onclick="openTaskDetail(\'' + entry.taskId + '\')">' + shortId(entry.taskId) + '</span>' +
+      '<span class="badge badge-type badge-' + entry.type + '">' + entry.type + '</span>' +
+      '<span class="log-details-toggle" onclick="toggleLogDetail(this)">[details]</span>' +
+      '<div class="log-details"><div class="json-viewer" style="max-height:200px">' + syntaxHighlight(entry.details) + '</div></div>' +
+      '</div>';
+  }).join('');
+
+  // Auto-scroll
+  if (document.getElementById('log-autoscroll').checked) {
+    const scrollEl = document.getElementById('log-scroll');
+    scrollEl.scrollTop = scrollEl.scrollHeight;
+  }
+}
+
+function toggleLogDetail(el) {
+  const details = el.nextElementSibling;
+  if (details) details.classList.toggle('open');
+}
+
+// Update task filter dropdown
+function updateLogTaskFilter() {
+  const select = document.getElementById('log-filter-task');
+  const current = select.value;
+  const taskIds = new Set();
+  state.logs.forEach(function(l) { taskIds.add(l.taskId); });
+  // Keep existing options, add new ones
+  const existing = new Set();
+  for (let i = 1; i < select.options.length; i++) {
+    existing.add(select.options[i].value);
+  }
+  taskIds.forEach(function(id) {
+    if (!existing.has(id)) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = shortId(id);
+      select.appendChild(opt);
     }
+  });
+  select.value = current;
+}
 
-    async function pollCosts() {
-      var data = await apiFetch('/api/costs');
-      renderCosts(data, cachedState);
-    }
+document.getElementById('log-filter-task').addEventListener('change', function() { renderLogs(state.logs); });
+document.getElementById('log-filter-type').addEventListener('change', function() { renderLogs(state.logs); });
 
-    // Initial load
-    (async function() {
-      await pollState();
-      await pollEscalations();
-      await pollLog();
-      await pollCosts();
-    })();
+/* ══════════════════════════════════════════════════════════
+   SETTINGS
+   ══════════════════════════════════════════════════════════ */
+function renderCosts(costs) {
+  let totalRequests = 0;
+  let totalApi = 0;
+  let totalLlm = 0;
+  if (Array.isArray(costs)) {
+    costs.forEach(function(c) {
+      totalRequests += c.requestCount || 0;
+      totalApi += c.totalUSD || 0;
+      totalLlm += c.llmCostUSD || 0;
+    });
+  }
+  document.getElementById('cost-requests').textContent = totalRequests;
+  document.getElementById('cost-api').textContent = '$' + totalApi.toFixed(2);
+  document.getElementById('cost-llm').textContent = '$' + totalLlm.toFixed(2);
+}
 
-    // Poll intervals
-    setInterval(pollEscalations, 2000);
-    setInterval(pollLog, 3000);
-    setInterval(function() { pollState(); pollCosts(); }, 5000);
-  </script>
+function renderSnapshots(snapshots) {
+  const tbody = document.getElementById('snapshots-tbody');
+  const table = document.getElementById('snapshots-table');
+  const empty = document.getElementById('snapshots-empty');
+  const count = document.getElementById('snapshot-count');
+
+  count.textContent = snapshots.length + ' snapshot' + (snapshots.length !== 1 ? 's' : '');
+
+  if (snapshots.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+
+  table.style.display = '';
+  empty.style.display = 'none';
+  tbody.innerHTML = snapshots.map(function(s) {
+    return '<tr>' +
+      '<td><span class="badge-task-id" onclick="openTaskDetail(\'' + s.taskId + '\')">' + shortId(s.taskId) + '</span></td>' +
+      '<td>' + escapeHtml(s.tag) + '</td>' +
+      '<td>' + escapeHtml(s.reason) + '</td>' +
+      '<td title="' + absoluteTime(s.createdAt) + '">' + relativeTime(s.createdAt) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function refreshManifestState() {
+  try {
+    const data = await apiFetch('/api/state');
+    state.manifestState = data;
+    document.getElementById('manifest-state-viewer').innerHTML = syntaxHighlight(data);
+  } catch (err) {
+    document.getElementById('manifest-state-viewer').innerHTML =
+      '<span class="json-null">No manifest loaded or error: ' + escapeHtml(err.message) + '</span>';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   DATA REFRESH
+   ══════════════════════════════════════════════════════════ */
+async function refreshTasks() {
+  try {
+    const tasks = await apiFetch('/api/tasks');
+    state.tasks = tasks;
+    renderInflightTasks(tasks);
+    renderCompletedTasks(tasks);
+  } catch (err) {
+    // Connection error handled by apiFetch
+  }
+}
+
+async function refreshEscalations() {
+  try {
+    const escalations = await apiFetch('/api/escalations');
+    state.escalations = escalations;
+    renderEscalations(escalations);
+  } catch (err) {
+    // handled
+  }
+}
+
+async function refreshLogs() {
+  try {
+    const logs = await apiFetch('/api/log');
+    state.logs = logs;
+    updateLogTaskFilter();
+    renderLogs(logs);
+  } catch (err) {
+    // handled
+  }
+}
+
+async function refreshCosts() {
+  try {
+    const costs = await apiFetch('/api/costs');
+    state.costs = costs;
+    renderCosts(costs);
+  } catch (err) {
+    // handled
+  }
+}
+
+async function refreshSnapshots() {
+  try {
+    const snapshots = await apiFetch('/api/snapshots');
+    state.snapshots = snapshots;
+    renderSnapshots(snapshots);
+  } catch (err) {
+    // handled
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   POLLING
+   ══════════════════════════════════════════════════════════ */
+// Initial load
+(async function() {
+  await Promise.allSettled([
+    refreshTasks(),
+    refreshEscalations(),
+    refreshLogs(),
+    refreshCosts(),
+    refreshSnapshots(),
+    refreshManifestState()
+  ]);
+})();
+
+// Escalations poll every 2 seconds
+setInterval(refreshEscalations, 2000);
+
+// Tasks and logs poll every 3 seconds
+setInterval(function() {
+  refreshTasks();
+  refreshLogs();
+}, 3000);
+
+// Costs and snapshots poll every 10 seconds
+setInterval(function() {
+  refreshCosts();
+  refreshSnapshots();
+}, 10000);
+
+</script>
 </body>
 </html>

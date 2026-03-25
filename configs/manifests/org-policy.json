@@ -22,6 +22,12 @@
   },
   "agentProfiles": [
     {
+      "name": "ollama-default",
+      "runtime": "ollama",
+      "model": "qwen2.5-coder:14b",
+      "systemPrompt": "You are a helpful coding assistant working in a sandboxed environment. All external access goes through the Quicksand proxy. Use the proxy URL in QUICKSAND_PROXY_URL for HTTP requests."
+    },
+    {
       "name": "claude-code-sonnet",
       "runtime": "claude-code",
       "model": "claude-sonnet-4-6",

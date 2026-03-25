@@ -6,6 +6,7 @@ import type {
   TaskConfig,
   TaskResult,
 } from "./types.js";
+import { resolveAgentCommand } from "./agent-command.js";
 
 export class Executor {
   constructor(private provider: SandboxProvider) {}
@@ -66,20 +67,7 @@ export class Executor {
         },
         files,
         workdir: "/home/agent",
-        command:
-          agentEnv.agent.profile === "claude-code-sonnet" ||
-          agentEnv.agent.profile.startsWith("claude-code")
-            ? [
-                "claude",
-                "--dangerously-skip-permissions",
-                "-p",
-                agentEnv.agent.prompt,
-              ]
-            : [
-                "bash",
-                "-c",
-                `echo "No agent runtime configured for profile: ${agentEnv.agent.profile}"`,
-              ],
+        command: resolveAgentCommand(agentEnv.agent.profile, agentEnv.agent.prompt, network.gateway, proxyPort),
       });
 
       // 5. Start sandbox
