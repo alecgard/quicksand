@@ -1,0 +1,32 @@
+{
+  "id": "test-escalation",
+  "createdAt": "2026-03-25T00:00:00Z",
+  "createdBy": "test",
+  "capabilities": {
+    "network": [
+      {
+        "name": "httpbin",
+        "baseURL": "https://httpbin.org",
+        "allowedPaths": ["/get"],
+        "allowedMethods": ["GET"]
+      }
+    ]
+  },
+  "limits": {
+    "warning": { "runtimeSeconds": 300, "costUSD": 3.0 },
+    "limit": { "runtimeSeconds": 600, "costUSD": 5.0 }
+  },
+  "escalation": {
+    "defaultAction": "request_human",
+    "approvalTimeoutSeconds": 300,
+    "snapshotOnPause": true
+  },
+  "environment": {
+    "snapshots": [],
+    "files": {},
+    "agent": {
+      "profile": "test",
+      "prompt": "Test escalation flow."
+    }
+  }
+}

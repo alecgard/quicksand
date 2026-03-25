@@ -1,0 +1,32 @@
+{
+  "id": "test-minimal",
+  "createdAt": "2026-03-25T00:00:00Z",
+  "createdBy": "test",
+  "capabilities": {
+    "network": [
+      {
+        "name": "httpbin",
+        "baseURL": "https://httpbin.org",
+        "allowedPaths": ["/get", "/post", "/status/*"],
+        "allowedMethods": ["GET", "POST"]
+      }
+    ]
+  },
+  "limits": {
+    "warning": { "runtimeSeconds": 60, "costUSD": 1.0 },
+    "limit": { "runtimeSeconds": 120, "costUSD": 2.0 }
+  },
+  "escalation": {
+    "defaultAction": "deny",
+    "approvalTimeoutSeconds": 60,
+    "snapshotOnPause": false
+  },
+  "environment": {
+    "snapshots": [],
+    "files": {},
+    "agent": {
+      "profile": "test",
+      "prompt": "This is a test task."
+    }
+  }
+}

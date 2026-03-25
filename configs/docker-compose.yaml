@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  proxy:
+    build:
+      context: ../
+      dockerfile: configs/proxy/Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../.env
+    environment:
+      - MANIFEST_PATH=/app/manifest.json
+    volumes:
+      - ./manifests/example.json:/app/manifest.json:ro
+    networks:
+      sandbox-net:
+        ipv4_address: 172.20.0.2
+      default:
+
+  sandbox:
+    build:
+      context: ./sandbox
+    depends_on:
+      - proxy
+    dns:
+      - 172.20.0.2
+    environment:
+      - QUICKSAND_PROXY_URL=http://172.20.0.2:8080
+      - HTTP_PROXY=http://172.20.0.2:8080
+      - HTTPS_PROXY=http://172.20.0.2:8080
+    networks:
+      sandbox-net:
+        ipv4_address: 172.20.0.3
+
+networks:
+  sandbox-net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1

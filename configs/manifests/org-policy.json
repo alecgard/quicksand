@@ -1,0 +1,31 @@
+{
+  "autoApprove": [
+    {
+      "name": "pypi",
+      "baseURL": "https://pypi.org",
+      "allowedPaths": [],
+      "allowedMethods": ["GET"]
+    }
+  ],
+  "forbidden": ["production-db"],
+  "maxTaskLimits": {
+    "runtimeSeconds": 3600,
+    "costUSD": 50.0
+  },
+  "globalLimits": {
+    "maxConcurrentTasks": 5,
+    "costUSD": 200.0
+  },
+  "logging": {
+    "detail": "full",
+    "streamAgentOutput": true
+  },
+  "agentProfiles": [
+    {
+      "name": "claude-code-sonnet",
+      "runtime": "claude-code",
+      "model": "claude-sonnet-4-6",
+      "systemPrompt": "You are a helpful coding assistant working in a sandboxed environment."
+    }
+  ]
+}

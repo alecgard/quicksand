@@ -1,0 +1,38 @@
+{
+  "name": "@quicksand/proxy",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./enforcement": {
+      "types": "./dist/enforcement.d.ts",
+      "import": "./dist/enforcement.js",
+      "default": "./dist/enforcement.js"
+    },
+    "./credentials": {
+      "types": "./dist/credentials.d.ts",
+      "import": "./dist/credentials.js",
+      "default": "./dist/credentials.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@quicksand/manifest": "workspace:*",
+    "hono": "^4",
+    "@hono/node-server": "^1",
+    "tsx": "^4"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

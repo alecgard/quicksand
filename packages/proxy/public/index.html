@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quicksand - Sandbox Approval Console</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --card-hover: #222;
+      --border: #333;
+      --border-light: #444;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --text-muted: #666;
+      --green: #10b981;
+      --green-dim: #065f46;
+      --red: #ef4444;
+      --red-dim: #7f1d1d;
+      --orange: #f59e0b;
+      --blue: #3b82f6;
+      --purple: #a855f7;
+      --yellow: #eab308;
+      --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected { background: var(--green); }
+
+    /* Layout */
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+      padding: 16px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .section-escalations {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
+    .section-task {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .section-log {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    @media (max-width: 1000px) {
+      .main {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .section-escalations { grid-column: 1; grid-row: 1; }
+      .section-task { grid-column: 1; grid-row: 2; }
+      .section-log { grid-column: 1; grid-row: 3; }
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .panel-badge {
+      background: var(--orange);
+      color: #000;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .panel-body.scrollable {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .panel-body::-webkit-scrollbar { width: 6px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Escalation cards */
+    .escalation-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .escalation-card:last-child { margin-bottom: 0; }
+
+    .escalation-card.pending {
+      border-color: var(--orange);
+      background: rgba(245, 158, 11, 0.05);
+    }
+
+    .escalation-card.highlight {
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .escalation-card.approved {
+      border-color: var(--green-dim);
+      opacity: 0.6;
+    }
+
+    .escalation-card.denied {
+      border-color: var(--red-dim);
+      opacity: 0.6;
+    }
+
+    .escalation-card.timeout {
+      border-color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .escalation-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .escalation-status {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .escalation-status.pending { background: var(--orange); color: #000; }
+    .escalation-status.approved { background: var(--green-dim); color: var(--green); }
+    .escalation-status.denied { background: var(--red-dim); color: var(--red); }
+    .escalation-status.timeout { background: #333; color: var(--text-muted); }
+
+    .escalation-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .escalation-reason {
+      font-size: 13px;
+      margin-bottom: 10px;
+      color: #fff;
+      line-height: 1.6;
+    }
+
+    .escalation-capability {
+      margin-bottom: 12px;
+    }
+
+    .capability-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .cap-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #2a2a2a;
+      border: 1px solid var(--border);
+    }
+
+    .cap-tag.name { color: var(--blue); border-color: rgba(59, 130, 246, 0.3); }
+    .cap-tag.url { color: var(--purple); border-color: rgba(168, 85, 247, 0.3); }
+    .cap-tag.method { color: var(--green); border-color: rgba(16, 185, 129, 0.3); }
+    .cap-tag.tool { color: var(--orange); border-color: rgba(245, 158, 11, 0.3); }
+
+    .capability-toggle {
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      margin-top: 4px;
+    }
+
+    .capability-toggle:hover { color: var(--text); }
+
+    .capability-json {
+      display: none;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 6px;
+      font-size: 11px;
+      overflow-x: auto;
+      white-space: pre;
+      color: var(--text-dim);
+    }
+
+    .capability-json.open { display: block; }
+
+    /* Escalation actions */
+    .escalation-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-approve { background: var(--green); color: #000; }
+    .btn-deny { background: var(--red); color: #fff; }
+
+    .action-input {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 5px 8px;
+    }
+
+    .action-input:focus {
+      outline: none;
+      border-color: var(--border-light);
+    }
+
+    .action-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .action-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    select.action-input {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 20px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+    }
+
+    /* Resolved section toggle */
+    .resolved-toggle {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 10px 0 4px;
+      user-select: none;
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+    }
+
+    .resolved-toggle:hover { color: var(--text); }
+
+    .resolved-list { display: none; }
+    .resolved-list.open { display: block; padding-top: 8px; }
+
+    /* Task info */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(51, 51, 51, 0.5);
+      font-size: 12px;
+    }
+
+    .info-row:last-child { border-bottom: none; }
+
+    .info-label {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-right: 12px;
+    }
+
+    .info-value {
+      color: var(--text);
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .capability-list {
+      margin-top: 8px;
+    }
+
+    .capability-item {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 6px;
+      overflow: hidden;
+    }
+
+    .capability-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .capability-item-header:hover { background: rgba(255,255,255,0.03); }
+
+    .capability-item-body {
+      display: none;
+      padding: 8px 10px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .capability-item-body.open { display: block; }
+
+    .subsection-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding: 12px 0 6px;
+      border-top: 1px solid var(--border);
+      margin-top: 8px;
+    }
+
+    .subsection-title:first-child { border-top: none; margin-top: 0; }
+
+    .grant-item {
+      border-left: 3px solid var(--green);
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      background: rgba(16, 185, 129, 0.05);
+      border-radius: 0 4px 4px 0;
+      font-size: 11px;
+    }
+
+    .grant-meta {
+      color: var(--text-muted);
+      font-size: 10px;
+      margin-top: 4px;
+    }
+
+    /* Cost tracker */
+    .cost-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .cost-card {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .cost-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .cost-value.warning { color: var(--yellow); }
+    .cost-value.danger { color: var(--red); }
+
+    .cost-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* Action log */
+    .log-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .log-filter {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 4px 8px;
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 20px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+    }
+
+    .log-filter:focus { outline: none; border-color: var(--border-light); }
+
+    .log-entry {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(51, 51, 51, 0.4);
+      font-size: 11px;
+      align-items: flex-start;
+    }
+
+    .log-entry:last-child { border-bottom: none; }
+
+    .log-time {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-size: 10px;
+      min-width: 60px;
+    }
+
+    .log-type {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .log-type.http_request { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
+    .log-type.mcp_tool_call { background: rgba(168, 85, 247, 0.15); color: var(--purple); }
+    .log-type.escalation_request { background: rgba(245, 158, 11, 0.15); color: var(--orange); }
+    .log-type.escalation_result_approved { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+    .log-type.escalation_result_denied { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+    .log-type.grant_added { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+    .log-type.denied { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+    .log-details {
+      color: var(--text-dim);
+      word-break: break-all;
+      flex: 1;
+    }
+
+    /* Animations */
+    @keyframes highlight-pulse {
+      0% { background: rgba(245, 158, 11, 0.15); }
+      100% { background: rgba(245, 158, 11, 0.05); }
+    }
+
+    .escalation-card.new-pulse {
+      animation: highlight-pulse 1.5s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">Quicksand</div>
+      <div class="header-subtitle">Sandbox Approval Console</div>
+    </div>
+    <div class="connection-status">
+      <span id="connection-label">Connecting...</span>
+      <span class="status-dot" id="connection-dot"></span>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="main">
+
+    <!-- Pending Escalations -->
+    <div class="section-escalations">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Escalation Requests</span>
+          <span class="panel-badge" id="pending-count" style="display:none">0</span>
+        </div>
+        <div class="panel-body" id="escalations-body">
+          <div class="empty-state">No escalation requests yet. Waiting for agent activity...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left column: Task Status + Cost -->
+    <div class="section-task">
+      <!-- Task Status -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header"><span>Task Status</span></div>
+        <div class="panel-body" id="task-body">
+          <div class="empty-state">No manifest loaded</div>
+        </div>
+      </div>
+
+      <!-- Cost Tracker -->
+      <div class="panel">
+        <div class="panel-header"><span>Cost Tracker</span></div>
+        <div class="panel-body" id="cost-body">
+          <div class="empty-state">No cost data available</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: Action Log -->
+    <div class="section-log">
+      <div class="panel">
+        <div class="panel-header"><span>Action Log</span></div>
+        <div class="panel-body scrollable" id="log-body">
+          <div class="empty-state">No log entries</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- State ---
+    var connected = false;
+    var knownEscalationIds = new Set();
+    var logFilter = 'all';
+    var resolvedOpen = false;
+
+    // --- Helpers ---
+    function relativeTime(iso) {
+      if (!iso) return '';
+      var now = Date.now();
+      var then = new Date(iso).getTime();
+      var diff = Math.max(0, now - then);
+      var s = Math.floor(diff / 1000);
+      if (s < 60) return s + 's ago';
+      var m = Math.floor(s / 60);
+      if (m < 60) return m + 'm ago';
+      var h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ago';
+      var d = Math.floor(h / 24);
+      return d + 'd ago';
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      var s = String(str);
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatUSD(n) {
+      if (typeof n !== 'number') return '$0.00';
+      return '$' + n.toFixed(4);
+    }
+
+    function setConnected(val) {
+      connected = val;
+      var dot = document.getElementById('connection-dot');
+      var label = document.getElementById('connection-label');
+      if (val) {
+        dot.className = 'status-dot connected';
+        label.textContent = 'Connected';
+      } else {
+        dot.className = 'status-dot';
+        label.textContent = 'Disconnected';
+      }
+    }
+
+    async function apiFetch(url) {
+      try {
+        var res = await fetch(url);
+        if (!res.ok) {
+          if (res.status === 404) return null;
+          throw new Error('HTTP ' + res.status);
+        }
+        setConnected(true);
+        return await res.json();
+      } catch (e) {
+        setConnected(false);
+        return null;
+      }
+    }
+
+    function toggleElement(el) {
+      el.classList.toggle('open');
+    }
+
+    // --- Render: Escalations ---
+    function renderEscalations(data) {
+      var body = document.getElementById('escalations-body');
+      var badge = document.getElementById('pending-count');
+
+      if (!data || data.length === 0) {
+        body.innerHTML = '<div class="empty-state">No escalation requests yet. Waiting for agent activity...</div>';
+        badge.style.display = 'none';
+        return;
+      }
+
+      var pending = data.filter(function(e) { return e.status === 'pending'; });
+      var resolved = data.filter(function(e) { return e.status !== 'pending'; });
+
+      if (pending.length > 0) {
+        badge.textContent = pending.length;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+
+      var html = '';
+
+      // Pending
+      pending.forEach(function(esc) {
+        var isNew = !knownEscalationIds.has(esc.id);
+        var pulseClass = isNew ? ' new-pulse' : '';
+        knownEscalationIds.add(esc.id);
+
+        html += '<div class="escalation-card pending' + pulseClass + '" id="esc-' + escapeHtml(esc.id) + '">';
+        html += renderEscalationContent(esc, true);
+        html += '</div>';
+      });
+
+      // Resolved
+      if (resolved.length > 0) {
+        html += '<div class="resolved-toggle" onclick="resolvedOpen=!resolvedOpen;document.getElementById(\'resolved-list\').classList.toggle(\'open\')">';
+        html += '&#9654; Resolved (' + resolved.length + ')';
+        html += '</div>';
+        html += '<div class="resolved-list' + (resolvedOpen ? ' open' : '') + '" id="resolved-list">';
+        resolved.forEach(function(esc) {
+          html += '<div class="escalation-card ' + escapeHtml(esc.status) + '">';
+          html += renderEscalationContent(esc, false);
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      body.innerHTML = html;
+    }
+
+    function renderEscalationContent(esc, showActions) {
+      var cap = esc.capability || {};
+      var html = '';
+
+      // Meta row
+      html += '<div class="escalation-meta">';
+      html += '<span class="escalation-status ' + escapeHtml(esc.status) + '">' + escapeHtml(esc.status) + '</span>';
+      html += '<span class="escalation-time" title="' + escapeHtml(esc.requestedAt) + '">' + relativeTime(esc.requestedAt) + '</span>';
+      html += '</div>';
+
+      // Reason
+      html += '<div class="escalation-reason">' + escapeHtml(esc.reason) + '</div>';
+
+      // Capability summary tags
+      html += '<div class="escalation-capability">';
+      html += '<div class="capability-summary">';
+      if (cap.name) html += '<span class="cap-tag name">' + escapeHtml(cap.name) + '</span>';
+      if (cap.baseURL) html += '<span class="cap-tag url">' + escapeHtml(cap.baseURL) + '</span>';
+      if (cap.allowedMethods) {
+        cap.allowedMethods.forEach(function(m) {
+          html += '<span class="cap-tag method">' + escapeHtml(m) + '</span>';
+        });
+      }
+      if (cap.allowedTools) {
+        cap.allowedTools.forEach(function(t) {
+          html += '<span class="cap-tag tool">tool:' + escapeHtml(t) + '</span>';
+        });
+      }
+      html += '</div>';
+
+      // Paths
+      if (cap.allowedPaths && cap.allowedPaths.length > 0) {
+        html += '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">Paths: ' + cap.allowedPaths.map(escapeHtml).join(', ') + '</div>';
+      }
+
+      // JSON toggle
+      var jsonId = 'cap-json-' + escapeHtml(esc.id);
+      html += '<div class="capability-toggle" onclick="toggleElement(document.getElementById(\'' + jsonId + '\'))">&#9654; Show full capability JSON</div>';
+      html += '<div class="capability-json" id="' + jsonId + '">' + escapeHtml(JSON.stringify(cap, null, 2)) + '</div>';
+      html += '</div>';
+
+      // Action buttons
+      if (showActions) {
+        html += '<div class="escalation-actions">';
+        html += '<button class="btn btn-approve" onclick="resolveEscalation(\'' + escapeHtml(esc.id) + '\', \'approve\')">Approve</button>';
+        html += '<button class="btn btn-deny" onclick="resolveEscalation(\'' + escapeHtml(esc.id) + '\', \'deny\')">Deny</button>';
+
+        html += '<div class="action-group">';
+        html += '<span class="action-label">Expires after</span>';
+        html += '<select class="action-input" id="expiry-' + escapeHtml(esc.id) + '">';
+        html += '<option value="">No expiry</option>';
+        html += '<option value="1">1 hour</option>';
+        html += '<option value="4">4 hours</option>';
+        html += '<option value="24" selected>24 hours</option>';
+        html += '</select>';
+        html += '</div>';
+
+        html += '<div class="action-group">';
+        html += '<span class="action-label">Approved by</span>';
+        html += '<input class="action-input" id="approver-' + escapeHtml(esc.id) + '" value="admin" style="width:100px">';
+        html += '</div>';
+
+        html += '</div>';
+      }
+
+      return html;
+    }
+
+    async function resolveEscalation(id, action) {
+      var approverEl = document.getElementById('approver-' + id);
+      var expiryEl = document.getElementById('expiry-' + id);
+      var approvedBy = approverEl ? approverEl.value || 'admin' : 'admin';
+      var expiryHours = expiryEl ? expiryEl.value : '';
+
+      var body = { action: action, approvedBy: approvedBy };
+      if (expiryHours && action === 'approve') {
+        var exp = new Date(Date.now() + parseInt(expiryHours) * 3600000);
+        body.expiresAt = exp.toISOString();
+      }
+
+      try {
+        await fetch('/api/escalations/' + encodeURIComponent(id) + '/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        pollEscalations();
+      } catch (e) {
+        console.error('Failed to resolve escalation:', e);
+      }
+    }
+
+    // --- Render: Task Status ---
+    function renderTaskStatus(state) {
+      var body = document.getElementById('task-body');
+
+      if (!state) {
+        body.innerHTML = '<div class="empty-state">No manifest loaded</div>';
+        return;
+      }
+
+      var m = state.manifest || {};
+      var html = '';
+
+      html += '<div class="info-row"><span class="info-label">Task ID</span><span class="info-value">' + escapeHtml(m.id) + '</span></div>';
+      html += '<div class="info-row"><span class="info-label">Created By</span><span class="info-value">' + escapeHtml(m.createdBy) + '</span></div>';
+      html += '<div class="info-row"><span class="info-label">Created At</span><span class="info-value" title="' + escapeHtml(m.createdAt) + '">' + relativeTime(m.createdAt) + '</span></div>';
+
+      if (m.limits) {
+        var lim = m.limits;
+        html += '<div class="info-row"><span class="info-label">Runtime Limit</span><span class="info-value">' + (lim.limit ? lim.limit.runtimeSeconds + 's' : '-') + '</span></div>';
+        html += '<div class="info-row"><span class="info-label">Cost Limit</span><span class="info-value">' + (lim.limit ? formatUSD(lim.limit.costUSD) : '-') + '</span></div>';
+        html += '<div class="info-row"><span class="info-label">Runtime Warning</span><span class="info-value">' + (lim.warning ? lim.warning.runtimeSeconds + 's' : '-') + '</span></div>';
+        html += '<div class="info-row"><span class="info-label">Cost Warning</span><span class="info-value">' + (lim.warning ? formatUSD(lim.warning.costUSD) : '-') + '</span></div>';
+      }
+
+      if (m.escalation) {
+        html += '<div class="info-row"><span class="info-label">Escalation Policy</span><span class="info-value">' + escapeHtml(m.escalation.defaultAction) + '</span></div>';
+        html += '<div class="info-row"><span class="info-label">Approval Timeout</span><span class="info-value">' + (m.escalation.approvalTimeoutSeconds || '-') + 's</span></div>';
+      }
+
+      // Capabilities
+      if (m.capabilities && m.capabilities.network && m.capabilities.network.length > 0) {
+        html += '<div class="subsection-title">Capabilities (' + m.capabilities.network.length + ')</div>';
+        html += '<div class="capability-list">';
+        m.capabilities.network.forEach(function(cap, i) {
+          var itemId = 'task-cap-' + i;
+          html += '<div class="capability-item">';
+          html += '<div class="capability-item-header" onclick="toggleElement(document.getElementById(\'' + itemId + '\'))">';
+          html += '<span>' + escapeHtml(cap.name) + '</span>';
+          html += '<span style="color:var(--text-muted);font-size:11px">' + escapeHtml(cap.baseURL) + '</span>';
+          html += '</div>';
+          html += '<div class="capability-item-body" id="' + itemId + '">' + escapeHtml(JSON.stringify(cap, null, 2)) + '</div>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      // Active grants
+      if (state.grants && state.grants.length > 0) {
+        html += '<div class="subsection-title">Active Grants (' + state.grants.length + ')</div>';
+        state.grants.forEach(function(g) {
+          html += '<div class="grant-item">';
+          html += '<div><strong>' + escapeHtml(g.capability.name) + '</strong> &mdash; ' + escapeHtml(g.capability.baseURL) + '</div>';
+          html += '<div style="margin-top:2px;color:var(--text-dim);font-size:10px">' + escapeHtml(g.reason) + '</div>';
+          html += '<div class="grant-meta">Approved by ' + escapeHtml(g.approvedBy) + ' ' + relativeTime(g.approvedAt);
+          if (g.expiresAt) html += ' &middot; Expires ' + relativeTime(g.expiresAt);
+          html += '</div>';
+          html += '</div>';
+        });
+      }
+
+      body.innerHTML = html;
+    }
+
+    // --- Render: Cost ---
+    function renderCosts(data, state) {
+      var body = document.getElementById('cost-body');
+
+      if (!data || Object.keys(data).length === 0) {
+        body.innerHTML = '<div class="empty-state">No cost data available</div>';
+        return;
+      }
+
+      var totalRequests = 0;
+      var totalEstimated = 0;
+      var totalLLM = 0;
+
+      Object.keys(data).forEach(function(taskId) {
+        var c = data[taskId];
+        totalRequests += c.requests || 0;
+        totalEstimated += c.estimatedCostUSD || 0;
+        totalLLM += c.reportedLLMCostUSD || 0;
+      });
+
+      var totalCost = totalEstimated + totalLLM;
+
+      // Determine warning state
+      var costClass = '';
+      if (state && state.manifest && state.manifest.limits) {
+        var lim = state.manifest.limits;
+        if (lim.limit && totalCost >= lim.limit.costUSD) costClass = ' danger';
+        else if (lim.warning && totalCost >= lim.warning.costUSD) costClass = ' warning';
+      }
+
+      var html = '<div class="cost-grid">';
+      html += '<div class="cost-card"><div class="cost-value">' + totalRequests + '</div><div class="cost-label">Total Requests</div></div>';
+      html += '<div class="cost-card"><div class="cost-value">' + formatUSD(totalEstimated) + '</div><div class="cost-label">Est. API Cost</div></div>';
+      html += '<div class="cost-card"><div class="cost-value">' + formatUSD(totalLLM) + '</div><div class="cost-label">Reported LLM Cost</div></div>';
+      html += '<div class="cost-card"><div class="cost-value' + costClass + '">' + formatUSD(totalCost) + '</div><div class="cost-label">Total Cost</div></div>';
+      html += '</div>';
+
+      body.innerHTML = html;
+    }
+
+    // --- Render: Action Log ---
+    function renderLog(data) {
+      var body = document.getElementById('log-body');
+
+      if (!data || data.length === 0) {
+        body.innerHTML = '<div class="empty-state">No log entries</div>';
+        return;
+      }
+
+      var html = '';
+
+      // Filter controls
+      html += '<div class="log-controls">';
+      html += '<span class="action-label">Filter:</span>';
+      html += '<select class="log-filter" id="log-filter-select" onchange="logFilter=this.value;pollLog()">';
+      html += '<option value="all"' + (logFilter === 'all' ? ' selected' : '') + '>All</option>';
+      html += '<option value="http_request"' + (logFilter === 'http_request' ? ' selected' : '') + '>HTTP Request</option>';
+      html += '<option value="mcp_tool_call"' + (logFilter === 'mcp_tool_call' ? ' selected' : '') + '>MCP Tool Call</option>';
+      html += '<option value="escalation_request"' + (logFilter === 'escalation_request' ? ' selected' : '') + '>Escalation Request</option>';
+      html += '<option value="escalation_result"' + (logFilter === 'escalation_result' ? ' selected' : '') + '>Escalation Result</option>';
+      html += '<option value="grant_added"' + (logFilter === 'grant_added' ? ' selected' : '') + '>Grant Added</option>';
+      html += '<option value="denied"' + (logFilter === 'denied' ? ' selected' : '') + '>Denied</option>';
+      html += '</select>';
+      html += '</div>';
+
+      // Filter entries
+      var entries = data;
+      if (logFilter !== 'all') {
+        entries = data.filter(function(e) { return e.type === logFilter; });
+      }
+
+      // Sort newest first
+      entries = entries.slice().sort(function(a, b) {
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
+
+      if (entries.length === 0) {
+        html += '<div class="empty-state">No matching entries</div>';
+      } else {
+        entries.forEach(function(entry) {
+          var typeClass = entry.type;
+          // For escalation_result, check details for sub-styling
+          if (entry.type === 'escalation_result') {
+            var action = entry.details && entry.details.action;
+            if (action === 'approve') typeClass = 'escalation_result_approved';
+            else if (action === 'deny') typeClass = 'escalation_result_denied';
+          }
+
+          var displayType = entry.type.replace(/_/g, ' ');
+          var details = '';
+          if (entry.details) {
+            var d = entry.details;
+            if (entry.type === 'http_request') {
+              details = (d.method || '') + ' ' + (d.url || d.path || '');
+              if (d.status) details += ' -> ' + d.status;
+            } else if (entry.type === 'mcp_tool_call') {
+              details = (d.tool || d.name || '') + (d.server ? ' @ ' + d.server : '');
+            } else if (entry.type === 'escalation_request') {
+              details = d.reason || JSON.stringify(d);
+            } else if (entry.type === 'escalation_result') {
+              details = (d.action || '') + ' by ' + (d.approvedBy || '');
+            } else if (entry.type === 'grant_added') {
+              details = (d.name || (d.capability && d.capability.name) || '') + ' ' + (d.baseURL || (d.capability && d.capability.baseURL) || '');
+            } else if (entry.type === 'denied') {
+              details = d.reason || d.url || JSON.stringify(d);
+            } else {
+              details = JSON.stringify(d);
+            }
+          }
+
+          html += '<div class="log-entry">';
+          html += '<span class="log-time" title="' + escapeHtml(entry.timestamp) + '">' + relativeTime(entry.timestamp) + '</span>';
+          html += '<span class="log-type ' + escapeHtml(typeClass) + '">' + escapeHtml(displayType) + '</span>';
+          html += '<span class="log-details">' + escapeHtml(details) + '</span>';
+          html += '</div>';
+        });
+      }
+
+      body.innerHTML = html;
+    }
+
+    // --- Polling ---
+    var cachedState = null;
+
+    async function pollState() {
+      var state = await apiFetch('/api/state');
+      cachedState = state;
+      renderTaskStatus(state);
+    }
+
+    async function pollEscalations() {
+      var data = await apiFetch('/api/escalations');
+      if (data) renderEscalations(data);
+    }
+
+    async function pollLog() {
+      var data = await apiFetch('/api/log');
+      if (data) renderLog(data);
+    }
+
+    async function pollCosts() {
+      var data = await apiFetch('/api/costs');
+      renderCosts(data, cachedState);
+    }
+
+    // Initial load
+    (async function() {
+      await pollState();
+      await pollEscalations();
+      await pollLog();
+      await pollCosts();
+    })();
+
+    // Poll intervals
+    setInterval(pollEscalations, 2000);
+    setInterval(pollLog, 3000);
+    setInterval(function() { pollState(); pollCosts(); }, 5000);
+  </script>
+</body>
+</html>

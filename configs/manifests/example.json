@@ -1,0 +1,69 @@
+{
+  "id": "task-2847",
+  "createdAt": "2026-03-25T14:00:00Z",
+  "createdBy": "planner",
+  "capabilities": {
+    "network": [
+      {
+        "name": "github-mcp",
+        "baseURL": "http://mcp-github:3000",
+        "allowedPaths": [],
+        "allowedMethods": ["POST"],
+        "allowedTools": ["get_file", "search_code", "list_commits"],
+        "auth": [
+          {
+            "placeholder": "__QS_CRED_GITHUB_TOKEN_f29a__",
+            "secretRef": "GITHUB_TOKEN"
+          }
+        ]
+      },
+      {
+        "name": "datadog",
+        "baseURL": "https://api.datadoghq.com",
+        "allowedPaths": ["/api/v1/logs/*", "/api/v1/query"],
+        "allowedMethods": ["GET", "POST"],
+        "auth": [
+          {
+            "placeholder": "__QS_CRED_DD_API_KEY_c83b__",
+            "secretRef": "DATADOG_API_KEY"
+          },
+          {
+            "placeholder": "__QS_CRED_DD_APP_KEY_d12e__",
+            "secretRef": "DATADOG_APP_KEY"
+          }
+        ]
+      },
+      {
+        "name": "pypi",
+        "baseURL": "https://pypi.org",
+        "allowedPaths": [],
+        "allowedMethods": ["GET"]
+      }
+    ]
+  },
+  "limits": {
+    "warning": {
+      "runtimeSeconds": 300,
+      "costUSD": 3.0
+    },
+    "limit": {
+      "runtimeSeconds": 600,
+      "costUSD": 5.0
+    }
+  },
+  "escalation": {
+    "defaultAction": "request_human",
+    "approvalTimeoutSeconds": 300,
+    "snapshotOnPause": true
+  },
+  "environment": {
+    "snapshots": ["base-dev-v4", "payments@main-abc123"],
+    "files": {
+      "/workspace/task.md": "Investigate latency spike on payments service at 14:32 today."
+    },
+    "agent": {
+      "profile": "claude-code-sonnet",
+      "prompt": "Investigate why p99 latency spiked on the payments service. Check logs, recent commits, and correlate with deployment timeline."
+    }
+  }
+}

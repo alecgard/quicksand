@@ -1,0 +1,24 @@
+{
+  "name": "@quicksand/cli",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "quicksand": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@quicksand/manifest": "workspace:*",
+    "@quicksand/proxy": "workspace:*",
+    "@quicksand/sandbox": "workspace:*",
+    "@quicksand/platform-docker": "workspace:*",
+    "@hono/node-server": "^1",
+    "tsx": "^4"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.7.0"
+  }
+}
