@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import {
@@ -215,6 +216,13 @@ function cmdProxy(args: string[]): void {
   if (isNaN(port) || port < 1 || port > 65535) {
     console.error("Invalid port number");
     process.exit(1);
+  }
+
+  // Check Docker availability
+  try {
+    execFileSync("docker", ["info"], { stdio: "ignore" });
+  } catch {
+    console.warn("⚠ Docker is not running — task execution will fail. Start Docker to run sandboxes.");
   }
 
   const { app } = createServer({
