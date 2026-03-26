@@ -3,7 +3,8 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "dev": "docker build -t quicksand-sandbox:latest configs/sandbox/ && tsx apps/cli/src/index.ts proxy",
+    "build:sandbox": "docker build -t quicksand-sandbox:latest configs/sandbox/",
+    "dev": "pnpm build:sandbox && tsx apps/cli/src/index.ts proxy",
     "test": "node --import tsx --test test/adversarial/*.test.ts test/unit/*.test.ts test/integration/*.test.ts"
   },
   "devDependencies": {
