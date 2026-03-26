@@ -1569,10 +1569,18 @@ function renderCompletedTasks(tasks) {
 /* ══════════════════════════════════════════════════════════
    TASK DETAIL MODAL
    ══════════════════════════════════════════════════════════ */
+var detailPollInterval = null;
+
 async function openTaskDetail(taskId) {
   state.detailTaskId = taskId;
   const overlay = document.getElementById('task-detail-overlay');
   overlay.style.display = 'block';
+
+  // Start polling while modal is open
+  if (detailPollInterval) clearInterval(detailPollInterval);
+  detailPollInterval = setInterval(function() {
+    if (state.detailTaskId) refreshTaskDetail(state.detailTaskId);
+  }, 2000);
 
   document.getElementById('detail-task-id').textContent = 'Task ' + shortId(taskId);
   document.getElementById('detail-task-prompt').textContent = 'Loading...';
@@ -1584,13 +1592,17 @@ async function openTaskDetail(taskId) {
   document.getElementById('detail-escalations').innerHTML = '';
   document.getElementById('detail-snapshots').innerHTML = '';
 
+  await refreshTaskDetail(taskId);
+}
+
+async function refreshTaskDetail(taskId) {
   try {
     const data = await apiFetch('/api/tasks/' + taskId);
     const task = data.task;
 
     document.getElementById('detail-task-id').textContent = 'Task ' + shortId(task.id);
     document.getElementById('detail-task-prompt').textContent = task.prompt;
-    const statusBadge = document.getElementById('detail-task-status');
+    var statusBadge = document.getElementById('detail-task-status');
     statusBadge.textContent = task.status;
     statusBadge.className = 'badge badge-' + task.status;
     document.getElementById('detail-task-created').textContent = 'Created ' + relativeTime(task.createdAt);
@@ -1604,7 +1616,7 @@ async function openTaskDetail(taskId) {
     }
 
     // Action log
-    const logContainer = document.getElementById('detail-action-log');
+    var logContainer = document.getElementById('detail-action-log');
     if (data.log && data.log.length) {
       logContainer.innerHTML = data.log.map(function(entry) {
         return '<div class="log-entry">' +
@@ -1619,7 +1631,7 @@ async function openTaskDetail(taskId) {
     }
 
     // Escalations
-    const escContainer = document.getElementById('detail-escalations');
+    var escContainer = document.getElementById('detail-escalations');
     if (data.escalations && data.escalations.length) {
       escContainer.innerHTML = data.escalations.map(function(e) {
         return '<div class="card" style="padding:10px;margin-bottom:6px">' +
@@ -1634,8 +1646,8 @@ async function openTaskDetail(taskId) {
     }
 
     // Snapshots
-    const snapContainer = document.getElementById('detail-snapshots');
-    const snaps = task.snapshots || [];
+    var snapContainer = document.getElementById('detail-snapshots');
+    var snaps = task.snapshots || [];
     if (snaps.length) {
       snapContainer.innerHTML = '<table class="data-table"><thead><tr><th>Tag</th><th>Reason</th><th>Created</th></tr></thead><tbody>' +
         snaps.map(function(s) {
@@ -1651,6 +1663,7 @@ async function openTaskDetail(taskId) {
 
 function closeTaskDetail() {
   state.detailTaskId = null;
+  if (detailPollInterval) { clearInterval(detailPollInterval); detailPollInterval = null; }
   document.getElementById('task-detail-overlay').style.display = 'none';
 }
 
