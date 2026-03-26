@@ -122,8 +122,8 @@ function printUsage(): void {
   quicksand validate <manifest.json>
     Validate a manifest file against schemas.
 
-  quicksand proxy <manifest.json> [options]
-    Start just the proxy server (for development/testing).
+  quicksand proxy [manifest.json] [options]
+    Start the proxy server and control plane UI.
     --port <port>                Port to listen on (default 8080)
     --policy <org-policy.json>   Optional org policy file
 
@@ -205,13 +205,8 @@ function cmdValidate(args: string[]): void {
 }
 
 function cmdProxy(args: string[]): void {
-  const manifestPath = args[0];
-  if (!manifestPath) {
-    console.error("Usage: quicksand proxy <manifest.json>");
-    process.exit(1);
-  }
-
-  const manifest = loadManifest(manifestPath);
+  const manifestPath = args[0] && !args[0].startsWith("--") ? args[0] : undefined;
+  const manifest = manifestPath ? loadManifest(manifestPath) : undefined;
   const policyPath = parseArg(args, "--policy");
   const orgPolicy = policyPath ? loadOrgPolicy(policyPath) : undefined;
   const portStr = parseArg(args, "--port");
@@ -228,7 +223,11 @@ function cmdProxy(args: string[]): void {
   });
 
   console.log(`Starting proxy server on port ${port}`);
-  console.log(`Manifest: ${manifest.id}`);
+  if (manifest) {
+    console.log(`Manifest: ${manifest.id}`);
+  } else {
+    console.log("No manifest loaded — create tasks from the UI");
+  }
 
   serve({ fetch: app.fetch, port });
 
