@@ -214,11 +214,15 @@ export function createAPIRoutes(
     if (!task) {
       return c.json({ error: "Task not found" }, 404);
     }
-    const log = actionLog.getAll().filter((e) => e.taskId === task.id);
+    // Match logs by task ID or manifest ID (they may differ for UI-created tasks)
+    const manifestId = task.manifestState?.manifest.id;
+    const matchesTask = (taskId: string) =>
+      taskId === task.id || (manifestId != null && taskId === manifestId);
+    const log = actionLog.getAll().filter((e) => matchesTask(e.taskId));
     const escalations = escalationManager
       .getAll()
-      .filter((e) => e.taskId === task.id);
-    const costs = costTracker.get(task.id);
+      .filter((e) => matchesTask(e.taskId));
+    const costs = costTracker.get(task.id) ?? costTracker.get(manifestId ?? "");
     return c.json({
       task,
       log,

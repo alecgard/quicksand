@@ -35,7 +35,7 @@ export class TaskManager {
    * ready to run). Otherwise manifestState is null.
    */
   createTask(prompt: string, manifest?: Manifest): TaskRecord {
-    const id = crypto.randomUUID();
+    const id = manifest?.id ?? crypto.randomUUID();
     const task: TaskRecord = {
       id,
       prompt,
