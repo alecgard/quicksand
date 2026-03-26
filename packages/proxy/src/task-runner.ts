@@ -27,7 +27,7 @@ export class TaskRunner {
     opts: { proxyHost?: string; proxyPort?: number } = {},
   ) {
     this.proxyHost = opts.proxyHost ?? "172.20.0.2";
-    this.proxyPort = opts.proxyPort ?? 8080;
+    this.proxyPort = opts.proxyPort ?? 7080;
   }
 
   /**

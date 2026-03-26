@@ -12,7 +12,7 @@ export interface ProxyConfig {
   /** Pre-loaded org policy (takes precedence over ORG_POLICY_PATH env var) */
   orgPolicy?: OrgPolicy;
 
-  /** Port to listen on (default: 8080) */
+  /** Port to listen on (default: 7080) */
   port?: number;
 }
 

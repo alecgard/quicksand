@@ -124,7 +124,7 @@ function printUsage(): void {
 
   quicksand proxy [manifest.json] [options]
     Start the proxy server and control plane UI.
-    --port <port>                Port to listen on (default 8080)
+    --port <port>                Port to listen on (default 7080)
     --policy <org-policy.json>   Optional org policy file
 
   quicksand help
@@ -210,7 +210,7 @@ function cmdProxy(args: string[]): void {
   const policyPath = parseArg(args, "--policy");
   const orgPolicy = policyPath ? loadOrgPolicy(policyPath) : undefined;
   const portStr = parseArg(args, "--port");
-  const port = portStr ? parseInt(portStr, 10) : 8080;
+  const port = portStr ? parseInt(portStr, 10) : 7080;
 
   if (isNaN(port) || port < 1 || port > 65535) {
     console.error("Invalid port number");

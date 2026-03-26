@@ -6,7 +6,7 @@ services:
       context: ../
       dockerfile: configs/proxy/Dockerfile
     ports:
-      - "8080:8080"
+      - "7080:7080"
     env_file:
       - ../.env
     environment:
@@ -26,9 +26,9 @@ services:
     dns:
       - 172.20.0.2
     environment:
-      - QUICKSAND_PROXY_URL=http://172.20.0.2:8080
-      - HTTP_PROXY=http://172.20.0.2:8080
-      - HTTPS_PROXY=http://172.20.0.2:8080
+      - QUICKSAND_PROXY_URL=http://172.20.0.2:7080
+      - HTTP_PROXY=http://172.20.0.2:7080
+      - HTTPS_PROXY=http://172.20.0.2:7080
     networks:
       sandbox-net:
         ipv4_address: 172.20.0.3

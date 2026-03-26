@@ -48,7 +48,7 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
     manifestManager.loadOrgPolicyFromFile(process.env.ORG_POLICY_PATH);
   }
 
-  const port = config.port ?? parseInt(process.env.PORT || "8080", 10);
+  const port = config.port ?? parseInt(process.env.PORT || "7080", 10);
   const taskRunner = new TaskRunner(manifestManager, actionLog, {
     proxyPort: port,
   });

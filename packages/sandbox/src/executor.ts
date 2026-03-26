@@ -13,7 +13,7 @@ export class Executor {
 
   async runTask(config: TaskConfig): Promise<TaskResult> {
     const networkName = `qs-${config.manifest.id}`;
-    const proxyPort = 8080;
+    const proxyPort = 7080;
 
     // 1. Create the proxy server in-process
     const { app, manifestManager } = createServer({

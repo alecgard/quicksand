@@ -2,7 +2,7 @@
 import { serve } from "@hono/node-server";
 import { createServer } from "./server.js";
 
-const port = parseInt(process.env.PORT || "8080", 10);
+const port = parseInt(process.env.PORT || "7080", 10);
 const { app } = createServer();
 
 console.log(`Quicksand proxy starting on port ${port}`);
