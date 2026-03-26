@@ -8,7 +8,7 @@ Quicksand runs AI agents in sandboxed Docker containers with **zero direct inter
 
 ```
 ┌─────────────────────────────────────────────┐
-│ User / Approval UI                          │
+│ User                                        │
 └──────────────────────┬──────────────────────┘
                        │
                        ▼
@@ -28,7 +28,7 @@ Quicksand runs AI agents in sandboxed Docker containers with **zero direct inter
 │ Sandbox         │  │ Sandbox ×N      │
 │                 │  │ (one per step)  │
 │ ┌─────────────┐ │  │ ┌─────────────┐ │
-│ │Orchestrator │ │  │ │ Step Agent  │ │
+│ │Orchestrator │ │  │ │ Agent       │ │
 │ │Agent        │ │  │ │             │ │
 │ └─────────────┘ │  │ └─────────────┘ │
 └────────┬────────┘  └────────┬────────┘
@@ -55,7 +55,7 @@ Quicksand runs AI agents in sandboxed Docker containers with **zero direct inter
 
 Every sandbox is the same implementation (Docker container,
 no internet, non-root user). Only the Manifest differs:
-orchestrator gets LLM + read-only registry, step agents
+orchestrator gets LLM + read-only registry, other agents
 get task-specific grants.
 ```
 
