@@ -1077,6 +1077,7 @@
         <span style="font-size:11px;color:var(--text-dim)" id="detail-task-created"></span>
         <span style="font-size:11px;color:var(--text-dim)" id="detail-task-duration"></span>
       </div>
+      <div id="detail-task-error" style="display:none;background:rgba(239,68,68,0.1);border:1px solid var(--red);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--red);white-space:pre-wrap;word-break:break-word"></div>
 
       <!-- Manifest state -->
       <div class="collapsible-header" onclick="toggleCollapsible(this)">
@@ -1557,12 +1558,20 @@ function renderCompletedTasks(tasks) {
     tr.onclick = function() { openTaskDetail(task.id); };
     tr.innerHTML = '<td><span class="badge-task-id">' + shortId(task.id) + '</span></td>' +
       '<td class="text-truncate">' + escapeHtml(truncate(task.prompt, 60)) + '</td>' +
-      '<td><span class="badge badge-' + task.status + '">' + task.status + '</span></td>' +
+      '<td><span class="badge badge-' + task.status + '"' + (task.error ? ' title="' + escapeHtml(task.error).slice(0, 200) + '"' : '') + '>' + task.status + '</span></td>' +
       '<td>' + duration(task.startedAt || task.createdAt, task.completedAt) + '</td>' +
       '<td>' + (task.exitCode !== undefined ? task.exitCode : '--') + '</td>' +
       '<td>' + grantCount + '</td>' +
       '<td>' + snapCount + '</td>';
     tbody.appendChild(tr);
+    if (task.error) {
+      var errRow = document.createElement('tr');
+      errRow.className = 'row-failed';
+      errRow.style.cursor = 'pointer';
+      errRow.onclick = function() { openTaskDetail(task.id); };
+      errRow.innerHTML = '<td colspan="7" style="font-size:11px;color:var(--red);padding:4px 12px 8px;border-top:none">' + escapeHtml(truncate(task.error, 200)) + '</td>';
+      tbody.appendChild(errRow);
+    }
   });
 }
 
@@ -1587,6 +1596,8 @@ async function openTaskDetail(taskId) {
   document.getElementById('detail-task-status').textContent = '';
   document.getElementById('detail-task-created').textContent = '';
   document.getElementById('detail-task-duration').textContent = '';
+  document.getElementById('detail-task-error').style.display = 'none';
+  document.getElementById('detail-task-error').textContent = '';
   document.getElementById('detail-manifest-state').innerHTML = '';
   document.getElementById('detail-action-log').innerHTML = '';
   document.getElementById('detail-escalations').innerHTML = '';
@@ -1607,6 +1618,16 @@ async function refreshTaskDetail(taskId) {
     statusBadge.className = 'badge badge-' + task.status;
     document.getElementById('detail-task-created').textContent = 'Created ' + relativeTime(task.createdAt);
     document.getElementById('detail-task-duration').textContent = 'Duration: ' + duration(task.startedAt || task.createdAt, task.completedAt);
+
+    // Error
+    var errorEl = document.getElementById('detail-task-error');
+    if (task.error) {
+      errorEl.style.display = '';
+      errorEl.textContent = task.error;
+    } else {
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
 
     // Manifest state
     if (task.manifestState) {
