@@ -912,11 +912,11 @@
   <!-- Completed Tasks -->
   <div class="section">
     <div class="collapsible-header" onclick="toggleCollapsible(this)">
-      <span class="collapsible-arrow">&#9654;</span>
+      <span class="collapsible-arrow open">&#9654;</span>
       <span class="section-title" style="font-size:13px">Completed Tasks</span>
       <span class="section-count" id="completed-count" style="margin-left:auto">0 tasks</span>
     </div>
-    <div class="collapsible-body" id="completed-section">
+    <div class="collapsible-body open" id="completed-section">
       <table class="data-table" id="completed-table">
         <thead>
           <tr>
@@ -1716,8 +1716,20 @@ function renderEscalations(escalations) {
     pendingEmpty.style.display = '';
   } else {
     pendingEmpty.style.display = 'none';
-    // Keep existing DOM where possible, rebuild for simplicity
-    const html = pending.map(function(esc) {
+    // Skip rebuild if same escalation IDs (preserves input state)
+    var pendingIds = pending.map(function(e) { return e.id; }).join(',');
+    if (pendingContainer.dataset.escIds === pendingIds) {
+      // Just update timestamps
+      pendingContainer.querySelectorAll('[data-esc-id]').forEach(function(el, i) {
+        if (i < pending.length) {
+          var ts = el.querySelector('.log-timestamp, [style*="font-size:11px"]');
+          // Not worth partial-updating escalation cards — they have inputs
+        }
+      });
+      return;
+    }
+    pendingContainer.dataset.escIds = pendingIds;
+    var html = pending.map(function(esc) {
       const isNew = !state.knownEscIds.has(esc.id);
       state.knownEscIds.add(esc.id);
       return '<div class="card' + (isNew ? ' highlight-new' : '') + '" data-esc-id="' + esc.id + '">' +
@@ -1759,6 +1771,9 @@ function renderEscalations(escalations) {
     resolvedEmpty.style.display = '';
   } else {
     resolvedEmpty.style.display = 'none';
+    var resolvedIds = resolved.map(function(e) { return e.id; }).join(',');
+    if (resolvedContainer.dataset.escIds === resolvedIds) return;
+    resolvedContainer.dataset.escIds = resolvedIds;
     resolvedContainer.innerHTML = resolved.map(function(esc) {
       return '<div class="card" style="padding:10px;margin-bottom:6px">' +
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">' +
@@ -1798,13 +1813,16 @@ async function resolveEscalation(id, action) {
 /* ══════════════════════════════════════════════════════════
    LOGS
    ══════════════════════════════════════════════════════════ */
-function renderLogs(logs) {
-  const container = document.getElementById('log-entries');
-  const empty = document.getElementById('log-empty');
-  const filterTask = document.getElementById('log-filter-task').value;
-  const filterType = document.getElementById('log-filter-type').value;
+// Track which log details are expanded (survives re-render)
+var expandedLogIds = new Set();
 
-  let filtered = logs;
+function renderLogs(logs) {
+  var container = document.getElementById('log-entries');
+  var empty = document.getElementById('log-empty');
+  var filterTask = document.getElementById('log-filter-task').value;
+  var filterType = document.getElementById('log-filter-type').value;
+
+  var filtered = logs;
   if (filterTask) {
     filtered = filtered.filter(function(l) { return l.taskId === filterTask; });
   }
@@ -1821,28 +1839,52 @@ function renderLogs(logs) {
 
   empty.style.display = 'none';
 
+  // Check if content actually changed to avoid needless DOM rebuild
+  var newIds = filtered.map(function(e) { return e.id; }).join(',');
+  if (container.dataset.logIds === newIds) {
+    // Just update relative timestamps
+    container.querySelectorAll('.log-entry').forEach(function(el, i) {
+      if (i < filtered.length) {
+        var ts = el.querySelector('.log-timestamp');
+        if (ts) ts.textContent = relativeTime(filtered[i].timestamp);
+      }
+    });
+    return;
+  }
+  container.dataset.logIds = newIds;
+
   container.innerHTML = filtered.map(function(entry) {
-    const isNew = !state.knownLogIds.has(entry.id);
+    var isNew = !state.knownLogIds.has(entry.id);
     state.knownLogIds.add(entry.id);
-    return '<div class="log-entry' + (isNew ? ' highlight-new' : '') + '">' +
+    var isOpen = expandedLogIds.has(entry.id);
+    return '<div class="log-entry' + (isNew ? ' highlight-new' : '') + '" data-log-id="' + entry.id + '">' +
       '<span class="log-timestamp" title="' + absoluteTime(entry.timestamp) + '">' + relativeTime(entry.timestamp) + '</span>' +
       '<span class="badge-task-id" onclick="openTaskDetail(\'' + entry.taskId + '\')">' + shortId(entry.taskId) + '</span>' +
       '<span class="badge badge-type badge-' + entry.type + '">' + entry.type + '</span>' +
       '<span class="log-details-toggle" onclick="toggleLogDetail(this)">[details]</span>' +
-      '<div class="log-details"><div class="json-viewer" style="max-height:200px">' + syntaxHighlight(entry.details) + '</div></div>' +
+      '<div class="log-details' + (isOpen ? ' open' : '') + '"><div class="json-viewer" style="max-height:200px">' + syntaxHighlight(entry.details) + '</div></div>' +
       '</div>';
   }).join('');
 
   // Auto-scroll
   if (document.getElementById('log-autoscroll').checked) {
-    const scrollEl = document.getElementById('log-scroll');
+    var scrollEl = document.getElementById('log-scroll');
     scrollEl.scrollTop = scrollEl.scrollHeight;
   }
 }
 
 function toggleLogDetail(el) {
-  const details = el.nextElementSibling;
-  if (details) details.classList.toggle('open');
+  var details = el.nextElementSibling;
+  if (!details) return;
+  details.classList.toggle('open');
+  var entry = el.closest('.log-entry');
+  if (entry && entry.dataset.logId) {
+    if (details.classList.contains('open')) {
+      expandedLogIds.add(entry.dataset.logId);
+    } else {
+      expandedLogIds.delete(entry.dataset.logId);
+    }
+  }
 }
 
 // Update task filter dropdown
