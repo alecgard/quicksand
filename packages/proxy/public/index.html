@@ -1858,43 +1858,37 @@ function renderLogs(logs) {
 
   empty.style.display = 'none';
 
-  // Check if content actually changed to avoid needless DOM rebuild
-  var newIds = filtered.map(function(e) { return e.id; }).join(',');
-  if (container.dataset.logIds === newIds) {
-    // Just update relative timestamps
-    container.querySelectorAll('.log-entry').forEach(function(el, i) {
-      if (i < filtered.length) {
-        var ts = el.querySelector('.log-timestamp');
-        if (ts) {
-          // Update only the text node, preserve tooltip span
-          var tipSpan = ts.querySelector('.tip');
-          if (tipSpan) {
-            // Remove tip, update text, re-add tip
-            ts.removeChild(tipSpan);
-            ts.textContent = relativeTime(filtered[i].timestamp);
-            ts.appendChild(tipSpan);
-          } else {
-            ts.textContent = relativeTime(filtered[i].timestamp);
-          }
-        }
-      }
-    });
-    return;
-  }
-  container.dataset.logIds = newIds;
+  // Build a set of IDs already in the DOM
+  var existingIds = new Set();
+  container.querySelectorAll('.log-entry[data-log-id]').forEach(function(el) {
+    existingIds.add(el.dataset.logId);
+  });
 
-  container.innerHTML = filtered.map(function(entry) {
-    var isNew = !state.knownLogIds.has(entry.id);
+  // Build set of IDs that should be shown
+  var filteredIds = new Set(filtered.map(function(e) { return e.id; }));
+
+  // Remove entries no longer in filtered set (e.g. filter changed)
+  container.querySelectorAll('.log-entry[data-log-id]').forEach(function(el) {
+    if (!filteredIds.has(el.dataset.logId)) {
+      el.remove();
+    }
+  });
+
+  // Append only new entries — leave existing DOM untouched
+  filtered.forEach(function(entry) {
+    if (existingIds.has(entry.id)) return;
     state.knownLogIds.add(entry.id);
-    var isOpen = expandedLogIds.has(entry.id);
-    return '<div class="log-entry' + (isNew ? ' highlight-new' : '') + '" data-log-id="' + entry.id + '">' +
+    var div = document.createElement('div');
+    div.className = 'log-entry highlight-new';
+    div.dataset.logId = entry.id;
+    div.innerHTML =
       '<span class="has-tooltip log-timestamp"><span class="tip">' + absoluteTime(entry.timestamp) + '</span>' + relativeTime(entry.timestamp) + '</span>' +
       '<span class="badge-task-id" onclick="openTaskDetail(\'' + entry.taskId + '\')">' + shortId(entry.taskId) + '</span>' +
       '<span class="badge badge-type badge-' + entry.type + '">' + entry.type + '</span>' +
       '<span class="log-details-toggle" onclick="toggleLogDetail(this)">[details]</span>' +
-      '<div class="log-details' + (isOpen ? ' open' : '') + '"><div class="json-viewer" style="max-height:200px">' + syntaxHighlight(entry.details) + '</div></div>' +
-      '</div>';
-  }).join('');
+      '<div class="log-details"><div class="json-viewer" style="max-height:200px">' + syntaxHighlight(entry.details) + '</div></div>';
+    container.appendChild(div);
+  });
 
   // Auto-scroll
   if (document.getElementById('log-autoscroll').checked) {
