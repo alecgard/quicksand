@@ -55,3 +55,4 @@ export type {
 } from "./types.js";
 
 export { effectiveCapabilities } from "./effective-capabilities.js";
+export { resolveAgentCommand } from "./agent-command.js";

@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@quicksand/manifest": "workspace:*",
+    "@quicksand/platform-docker": "workspace:*",
     "hono": "^4",
     "@hono/node-server": "^1",
     "tsx": "^4",

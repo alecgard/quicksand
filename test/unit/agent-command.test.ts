@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { resolveAgentCommand } from "@quicksand/sandbox/agent-command";
+import { resolveAgentCommand } from "@quicksand/manifest";
 
 describe("resolveAgentCommand", () => {
   const gateway = "172.17.0.1";

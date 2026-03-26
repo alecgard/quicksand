@@ -4,3 +4,4 @@ export { TaskManager } from "./task-manager.js";
 export type { TaskRecord, SnapshotRecord } from "./task-manager.js";
 export type { ProxyConfig } from "./types.js";
 export type { ServerInstance } from "./server.js";
+export { TaskRunner } from "./task-runner.js";

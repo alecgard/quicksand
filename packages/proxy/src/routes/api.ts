@@ -6,6 +6,7 @@ import type { ActionLog } from "../action-log.js";
 import type { CostTracker } from "../cost-tracker.js";
 import type { EscalationManager } from "../escalation.js";
 import type { TaskManager } from "../task-manager.js";
+import type { TaskRunner } from "../task-runner.js";
 
 const CreateTaskSchema = z.object({
   prompt: z.string(),
@@ -51,6 +52,7 @@ export function createAPIRoutes(
   costTracker: CostTracker,
   escalationManager: EscalationManager,
   taskManager?: TaskManager,
+  taskRunner?: TaskRunner,
 ): Hono {
   const app = new Hono();
 
@@ -177,7 +179,7 @@ export function createAPIRoutes(
 
   // ── Task management endpoints ──────────────────────────
 
-  // POST /api/tasks — create a new task
+  // POST /api/tasks — create and run a task
   app.post("/tasks", async (c) => {
     if (!taskManager) {
       return c.json({ error: "Task manager not available" }, 500);
@@ -186,6 +188,19 @@ export function createAPIRoutes(
       const body = await c.req.json();
       const parsed = CreateTaskSchema.parse(body);
       const task = taskManager.createTask(parsed.prompt, parsed.manifest);
+
+      // If the task has a manifest and a runner is available, execute it
+      if (task.manifestState && taskRunner) {
+        // Run in the background — don't await
+        taskRunner.run(task.id).catch((err) => {
+          taskManager.updateTask(task.id, {
+            status: "failed",
+            completedAt: new Date().toISOString(),
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+
       return c.json(task, 201);
     } catch (err) {
       const message =

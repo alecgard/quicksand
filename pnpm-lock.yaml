@@ -63,6 +63,9 @@ importers:
       '@quicksand/manifest':
         specifier: workspace:*
         version: link:../manifest
+      '@quicksand/platform-docker':
+        specifier: workspace:*
+        version: link:../../platform/docker
       hono:
         specifier: ^4
         version: 4.0.0

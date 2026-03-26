@@ -6,7 +6,7 @@ import type {
   TaskConfig,
   TaskResult,
 } from "./types.js";
-import { resolveAgentCommand } from "./agent-command.js";
+import { resolveAgentCommand } from "@quicksand/manifest";
 
 export class Executor {
   constructor(private provider: SandboxProvider) {}

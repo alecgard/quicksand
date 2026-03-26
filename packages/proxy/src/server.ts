@@ -9,6 +9,7 @@ import { createProxyRoutes } from "./routes/proxy.js";
 import { createMCPRoutes } from "./routes/mcp.js";
 import { createAPIRoutes } from "./routes/api.js";
 import { createUIRoutes } from "./routes/ui.js";
+import { TaskRunner } from "./task-runner.js";
 
 export interface ServerInstance {
   app: Hono;
@@ -17,6 +18,7 @@ export interface ServerInstance {
   costTracker: CostTracker;
   escalationManager: EscalationManager;
   taskManager: TaskManager;
+  taskRunner: TaskRunner;
 }
 
 /**
@@ -58,6 +60,11 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
     stateManager.loadOrgPolicyFromFile(process.env.ORG_POLICY_PATH);
   }
 
+  const port = config.port ?? parseInt(process.env.PORT || "8080", 10);
+  const taskRunner = new TaskRunner(taskManager, stateManager, actionLog, {
+    proxyPort: port,
+  });
+
   const app = new Hono();
 
   // Mount routes
@@ -65,7 +72,7 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
   app.route("/mcp", createMCPRoutes(stateManager, actionLog, costTracker));
   app.route(
     "/api",
-    createAPIRoutes(stateManager, actionLog, costTracker, escalationManager, taskManager),
+    createAPIRoutes(stateManager, actionLog, costTracker, escalationManager, taskManager, taskRunner),
   );
 
   // Health check
@@ -81,5 +88,6 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
     costTracker,
     escalationManager,
     taskManager,
+    taskRunner,
   };
 }
