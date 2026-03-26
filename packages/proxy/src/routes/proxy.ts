@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { StateManager } from "../state.js";
+import type { ManifestManager } from "../manifest-manager.js";
 import type { ActionLog } from "../action-log.js";
 import type { CostTracker } from "../cost-tracker.js";
 import { findGrant, validateRequest, checkRateLimit } from "../enforcement.js";
@@ -17,7 +17,7 @@ import {
  * baseURL + the path after the grant name.
  */
 export function createProxyRoutes(
-  stateManager: StateManager,
+  manifestManager: ManifestManager,
   actionLog: ActionLog,
   costTracker: CostTracker,
 ): Hono {
@@ -39,16 +39,22 @@ export function createProxyRoutes(
       return c.json({ error: "Missing grant name in proxy URL" }, 400);
     }
 
+    // Resolve which manifest this request belongs to
+    const taskId = c.req.header("x-quicksand-task-id");
+    if (!taskId) {
+      return c.json({ error: "Missing X-Quicksand-Task-Id header" }, 400);
+    }
+
     let capabilities;
     try {
-      capabilities = stateManager.getEffectiveCapabilities();
+      capabilities = manifestManager.getEffectiveCapabilities(taskId);
     } catch {
-      return c.json({ error: "No manifest loaded" }, 500);
+      return c.json({ error: `No manifest found for task ${taskId}` }, 404);
     }
 
     const grant = findGrant(capabilities, grantName);
     if (!grant) {
-      actionLog.add(stateManager.getManifest().id, "denied", {
+      actionLog.add(taskId, "denied", {
         reason: `No grant found for "${grantName}"`,
         method: c.req.method,
         path: targetPath,
@@ -67,7 +73,7 @@ export function createProxyRoutes(
     // Validate method and path
     const validationError = validateRequest(grant, c.req.method, targetPath);
     if (validationError) {
-      actionLog.add(stateManager.getManifest().id, "denied", {
+      actionLog.add(taskId, "denied", {
         reason: validationError,
         method: c.req.method,
         path: targetPath,
@@ -107,8 +113,6 @@ export function createProxyRoutes(
         body = replaceCredentials(rawBody, grant.auth);
       }
     }
-
-    const taskId = stateManager.getManifest().id;
 
     // Log the request
     actionLog.add(taskId, "http_request", {

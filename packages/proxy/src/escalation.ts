@@ -5,7 +5,7 @@ import type {
   EscalationPolicy,
 } from "@quicksand/manifest";
 import type { PendingEscalation } from "./types.js";
-import type { StateManager } from "./state.js";
+import type { ManifestManager } from "./manifest-manager.js";
 import type { ActionLog } from "./action-log.js";
 
 /**
@@ -16,7 +16,7 @@ export class EscalationManager {
   private escalations = new Map<string, PendingEscalation>();
 
   constructor(
-    private stateManager: StateManager,
+    private manifestManager: ManifestManager,
     private actionLog: ActionLog,
   ) {}
 
@@ -28,11 +28,13 @@ export class EscalationManager {
    * if auto-approved or forbidden).
    */
   requestEscalation(
+    manifestId: string,
     reason: string,
     capability: AnyGrant,
   ): PendingEscalation {
-    const manifest = this.stateManager.getManifest();
-    const orgPolicy = this.stateManager.getOrgPolicy();
+    const state = this.manifestManager.getOrThrow(manifestId);
+    const manifest = state.manifest;
+    const orgPolicy = this.manifestManager.getOrgPolicy();
     const taskId = manifest.id;
 
     const escalation: PendingEscalation = {
@@ -66,7 +68,7 @@ export class EscalationManager {
           reason,
           capability: autoApproved,
         };
-        this.stateManager.addGrant(grant);
+        this.manifestManager.addGrant(manifestId, grant);
         this.actionLog.add(taskId, "escalation_result", {
           escalationId: escalation.id,
           result: "approved",
@@ -136,7 +138,7 @@ export class EscalationManager {
         capability: escalation.capability,
         expiresAt,
       };
-      this.stateManager.addGrant(grant);
+      this.manifestManager.addGrant(escalation.manifestId, grant);
       this.actionLog.add(taskId, "escalation_result", {
         escalationId,
         result: "approved",

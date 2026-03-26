@@ -1,6 +1,4 @@
-import type { Manifest } from "@quicksand/manifest";
-import type { TaskManager } from "./task-manager.js";
-import type { StateManager } from "./state.js";
+import type { ManifestManager } from "./manifest-manager.js";
 import type { ActionLog } from "./action-log.js";
 import {
   createSandboxNetwork,
@@ -24,8 +22,7 @@ export class TaskRunner {
   private proxyPort: number;
 
   constructor(
-    private taskManager: TaskManager,
-    private stateManager: StateManager,
+    private manifestManager: ManifestManager,
     private actionLog: ActionLog,
     opts: { proxyHost?: string; proxyPort?: number } = {},
   ) {
@@ -35,24 +32,17 @@ export class TaskRunner {
 
   /**
    * Run a task in the background. Creates the Docker network and
-   * sandbox, starts the agent, and updates the task record as it
+   * sandbox, starts the agent, and updates the manifest state as it
    * progresses.
    */
   async run(taskId: string): Promise<void> {
-    const task = this.taskManager.getTask(taskId);
-    if (!task) throw new Error(`Task not found: ${taskId}`);
-    if (!task.manifestState) throw new Error(`Task ${taskId} has no manifest`);
-
-    const manifest = task.manifestState.manifest;
+    const state = this.manifestManager.getOrThrow(taskId);
+    const manifest = state.manifest;
     const networkName = `qs-${manifest.id}`;
     const containerId = `qs-sandbox-${manifest.id}`;
     const proxyURL = `http://${this.proxyHost}:${this.proxyPort}`;
 
-    // Load this task's manifest into the proxy state so proxy
-    // enforcement works for this task's requests
-    this.stateManager.loadManifest(manifest);
-
-    this.taskManager.updateTask(taskId, {
+    this.manifestManager.update(taskId, {
       status: "running",
       startedAt: new Date().toISOString(),
     });
@@ -115,13 +105,13 @@ export class TaskRunner {
       // Wait for completion
       const result = await waitForSandbox(instance.containerId);
 
-      this.taskManager.updateTask(taskId, {
+      this.manifestManager.update(taskId, {
         status: result.exitCode === 0 ? "completed" : "failed",
         completedAt: new Date().toISOString(),
         exitCode: result.exitCode,
       });
     } catch (err) {
-      this.taskManager.updateTask(taskId, {
+      this.manifestManager.update(taskId, {
         status: "failed",
         completedAt: new Date().toISOString(),
         error: err instanceof Error ? err.message : String(err),

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { StateManager } from "../state.js";
+import type { ManifestManager } from "../manifest-manager.js";
 import type { ActionLog } from "../action-log.js";
 import type { CostTracker } from "../cost-tracker.js";
 import {
@@ -19,7 +19,7 @@ import type { JsonRpcRequest } from "../types.js";
  * filtering tools/list and validating tools/call.
  */
 export function createMCPRoutes(
-  stateManager: StateManager,
+  manifestManager: ManifestManager,
   actionLog: ActionLog,
   costTracker: CostTracker,
 ): Hono {
@@ -28,11 +28,31 @@ export function createMCPRoutes(
   app.post("/:name", async (c) => {
     const name = c.req.param("name");
 
+    // Resolve which manifest this request belongs to
+    const taskId = c.req.header("x-quicksand-task-id");
+    if (!taskId) {
+      return c.json(
+        {
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: -32600, message: "Missing X-Quicksand-Task-Id header" },
+        },
+        400,
+      );
+    }
+
     let capabilities;
     try {
-      capabilities = stateManager.getEffectiveCapabilities();
+      capabilities = manifestManager.getEffectiveCapabilities(taskId);
     } catch {
-      return c.json({ error: "No manifest loaded" }, 500);
+      return c.json(
+        {
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: -32600, message: `No manifest found for task ${taskId}` },
+        },
+        404,
+      );
     }
 
     const grant = findGrant(capabilities, name);
@@ -75,8 +95,6 @@ export function createMCPRoutes(
         429,
       );
     }
-
-    const taskId = stateManager.getManifest().id;
 
     let request: JsonRpcRequest;
     try {

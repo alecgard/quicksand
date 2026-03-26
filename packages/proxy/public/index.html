@@ -1048,14 +1048,6 @@
       </div>
     </div>
 
-    <!-- Manifest State -->
-    <div class="section settings-full">
-      <div class="section-header">
-        <h2 class="section-title">Current Manifest State</h2>
-        <button class="btn btn-sm" onclick="refreshManifestState()">Refresh</button>
-      </div>
-      <div class="json-viewer" id="manifest-state-viewer">Loading...</div>
-    </div>
   </div>
 </div>
 
@@ -1125,7 +1117,6 @@ const state = {
   logs: [],
   costs: [],
   snapshots: [],
-  manifestState: null,
   connected: false,
   knownTaskIds: new Set(),
   knownEscIds: new Set(),
@@ -1924,16 +1915,6 @@ function renderSnapshots(snapshots) {
   }).join('');
 }
 
-async function refreshManifestState() {
-  try {
-    const data = await apiFetch('/api/state');
-    state.manifestState = data;
-    document.getElementById('manifest-state-viewer').innerHTML = syntaxHighlight(data);
-  } catch (err) {
-    document.getElementById('manifest-state-viewer').innerHTML =
-      '<span class="json-null">No manifest loaded or error: ' + escapeHtml(err.message) + '</span>';
-  }
-}
 
 /* ══════════════════════════════════════════════════════════
    DATA REFRESH
@@ -2001,7 +1982,6 @@ async function refreshSnapshots() {
     refreshLogs(),
     refreshCosts(),
     refreshSnapshots(),
-    refreshManifestState()
   ]);
 })();
 

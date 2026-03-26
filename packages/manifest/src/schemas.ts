@@ -101,6 +101,18 @@ export const GrantSchema = z.object({
 export const ManifestStateSchema = z.object({
   manifest: ManifestSchema,
   grants: z.array(GrantSchema),
+  // Execution lifecycle
+  status: z.enum(["pending", "running", "completed", "failed"]).default("pending"),
+  startedAt: z.string().optional(),
+  completedAt: z.string().optional(),
+  error: z.string().optional(),
+  exitCode: z.number().optional(),
+  snapshots: z.array(z.object({
+    id: z.string(),
+    tag: z.string(),
+    createdAt: z.string(),
+    reason: z.string(),
+  })).default([]),
 });
 
 // --- Plans ---

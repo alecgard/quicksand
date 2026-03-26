@@ -16,7 +16,7 @@ export class Executor {
     const proxyPort = 8080;
 
     // 1. Create the proxy server in-process
-    const { app, stateManager } = createServer({
+    const { app, manifestManager } = createServer({
       manifest: config.manifest,
       orgPolicy: config.orgPolicy,
     });
@@ -86,7 +86,7 @@ export class Executor {
       // 7. Wait for completion
       const result = await sandbox.wait();
 
-      const state = stateManager.getState();
+      const state = manifestManager.get(config.manifest.id);
 
       return {
         exitCode: result.exitCode,

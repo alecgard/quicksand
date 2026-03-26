@@ -1,23 +1,23 @@
 import { Hono } from "hono";
+import { readFileSync } from "node:fs";
 import type { ProxyConfig } from "./types.js";
-import { StateManager } from "./state.js";
+import { ManifestManager } from "./manifest-manager.js";
 import { ActionLog } from "./action-log.js";
 import { CostTracker } from "./cost-tracker.js";
 import { EscalationManager } from "./escalation.js";
-import { TaskManager } from "./task-manager.js";
 import { createProxyRoutes } from "./routes/proxy.js";
 import { createMCPRoutes } from "./routes/mcp.js";
 import { createAPIRoutes } from "./routes/api.js";
 import { createUIRoutes } from "./routes/ui.js";
 import { TaskRunner } from "./task-runner.js";
+import { ManifestSchema } from "@quicksand/manifest";
 
 export interface ServerInstance {
   app: Hono;
-  stateManager: StateManager;
+  manifestManager: ManifestManager;
   actionLog: ActionLog;
   costTracker: CostTracker;
   escalationManager: EscalationManager;
-  taskManager: TaskManager;
   taskRunner: TaskRunner;
 }
 
@@ -27,52 +27,40 @@ export interface ServerInstance {
  * programmatically.
  */
 export function createServer(config: ProxyConfig = {}): ServerInstance {
-  const stateManager = new StateManager();
+  const manifestManager = new ManifestManager();
   const actionLog = new ActionLog();
   const costTracker = new CostTracker();
-  const escalationManager = new EscalationManager(stateManager, actionLog);
-  const taskManager = new TaskManager();
+  const escalationManager = new EscalationManager(manifestManager, actionLog);
 
   // Load manifest if provided in config
   if (config.manifest) {
-    stateManager.loadManifest(config.manifest);
-    // Also create a corresponding task
-    taskManager.createTask(
-      config.manifest.environment.agent.prompt,
-      config.manifest,
-    );
+    manifestManager.register(config.manifest);
   } else if (process.env.MANIFEST_PATH) {
-    stateManager.loadManifestFromFile(process.env.MANIFEST_PATH);
-    // Create task for the loaded manifest
-    const state = stateManager.getState();
-    if (state) {
-      taskManager.createTask(
-        state.manifest.environment.agent.prompt,
-        state.manifest,
-      );
-    }
+    const raw = readFileSync(process.env.MANIFEST_PATH, "utf-8");
+    const manifest = ManifestSchema.parse(JSON.parse(raw));
+    manifestManager.register(manifest);
   }
 
   // Load org policy if provided in config
   if (config.orgPolicy) {
-    stateManager.loadOrgPolicy(config.orgPolicy);
+    manifestManager.loadOrgPolicy(config.orgPolicy);
   } else if (process.env.ORG_POLICY_PATH) {
-    stateManager.loadOrgPolicyFromFile(process.env.ORG_POLICY_PATH);
+    manifestManager.loadOrgPolicyFromFile(process.env.ORG_POLICY_PATH);
   }
 
   const port = config.port ?? parseInt(process.env.PORT || "8080", 10);
-  const taskRunner = new TaskRunner(taskManager, stateManager, actionLog, {
+  const taskRunner = new TaskRunner(manifestManager, actionLog, {
     proxyPort: port,
   });
 
   const app = new Hono();
 
   // Mount routes
-  app.route("/proxy", createProxyRoutes(stateManager, actionLog, costTracker));
-  app.route("/mcp", createMCPRoutes(stateManager, actionLog, costTracker));
+  app.route("/proxy", createProxyRoutes(manifestManager, actionLog, costTracker));
+  app.route("/mcp", createMCPRoutes(manifestManager, actionLog, costTracker));
   app.route(
     "/api",
-    createAPIRoutes(stateManager, actionLog, costTracker, escalationManager, taskManager, taskRunner),
+    createAPIRoutes(manifestManager, actionLog, costTracker, escalationManager, taskRunner),
   );
 
   // Health check
@@ -83,11 +71,10 @@ export function createServer(config: ProxyConfig = {}): ServerInstance {
 
   return {
     app,
-    stateManager,
+    manifestManager,
     actionLog,
     costTracker,
     escalationManager,
-    taskManager,
     taskRunner,
   };
 }

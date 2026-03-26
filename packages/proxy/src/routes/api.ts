@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { AnyGrantSchema, ManifestSchema, ManifestStateSchema } from "@quicksand/manifest";
-import type { StateManager } from "../state.js";
+import { AnyGrantSchema, ManifestSchema } from "@quicksand/manifest";
+import type { ManifestState } from "@quicksand/manifest";
+import type { ManifestManager } from "../manifest-manager.js";
 import type { ActionLog } from "../action-log.js";
 import type { CostTracker } from "../cost-tracker.js";
 import type { EscalationManager } from "../escalation.js";
-import type { TaskManager } from "../task-manager.js";
 import type { TaskRunner } from "../task-runner.js";
 
 const CreateTaskSchema = z.object({
@@ -19,7 +19,6 @@ const UpdateTaskSchema = z.object({
   exitCode: z.number().optional(),
   startedAt: z.string().optional(),
   completedAt: z.string().optional(),
-  manifestState: ManifestStateSchema.optional(),
 });
 
 const CreateSnapshotSchema = z.object({
@@ -27,13 +26,28 @@ const CreateSnapshotSchema = z.object({
   reason: z.string(),
 });
 
+function toTaskResponse(state: ManifestState) {
+  return {
+    id: state.manifest.id,
+    prompt: state.manifest.environment.agent.prompt,
+    status: state.status,
+    manifestState: state,
+    snapshots: state.snapshots,
+    createdAt: state.manifest.createdAt,
+    startedAt: state.startedAt,
+    completedAt: state.completedAt,
+    error: state.error,
+    exitCode: state.exitCode,
+  };
+}
+
 /**
  * Creates REST API route handlers.
  * Routes:
- * - GET  /api/state       — current ManifestState
  * - GET  /api/log         — action log
- * - POST /api/manifest    — load a new manifest
+ * - POST /api/manifest    — register a manifest
  * - POST /api/cost        — report LLM cost
+ * - GET  /api/costs       — all costs
  * - POST /api/escalation  — request an escalation
  * - GET  /api/escalations — list pending escalations
  * - POST /api/escalations/:id/resolve — approve/deny
@@ -41,41 +55,29 @@ const CreateSnapshotSchema = z.object({
  * - GET  /api/tasks       — list tasks
  * - GET  /api/tasks/:id   — get task detail
  * - PATCH /api/tasks/:id  — update task
- * - POST /api/tasks/:id/manifest — attach manifest
- * - GET  /api/tasks/:id/snapshots — task snapshots
  * - POST /api/tasks/:id/snapshots — add snapshot
  * - GET  /api/snapshots   — all snapshots
  */
 export function createAPIRoutes(
-  stateManager: StateManager,
+  manifestManager: ManifestManager,
   actionLog: ActionLog,
   costTracker: CostTracker,
   escalationManager: EscalationManager,
-  taskManager?: TaskManager,
   taskRunner?: TaskRunner,
 ): Hono {
   const app = new Hono();
-
-  // GET /api/state
-  app.get("/state", (c) => {
-    const state = stateManager.getState();
-    if (!state) {
-      return c.json({ error: "No manifest loaded" }, 404);
-    }
-    return c.json(state);
-  });
 
   // GET /api/log
   app.get("/log", (c) => {
     return c.json(actionLog.getAll());
   });
 
-  // POST /api/manifest — load a manifest
+  // POST /api/manifest — register a manifest
   app.post("/manifest", async (c) => {
     try {
       const body = await c.req.json();
       const manifest = ManifestSchema.parse(body);
-      stateManager.loadManifest(manifest);
+      manifestManager.register(manifest);
       return c.json({ ok: true, manifestId: manifest.id });
     } catch (err) {
       const message =
@@ -101,13 +103,8 @@ export function createAPIRoutes(
 
   // POST /api/escalation — request an escalation
   app.post("/escalation", async (c) => {
-    try {
-      stateManager.getManifest(); // ensure loaded
-    } catch {
-      return c.json({ error: "No manifest loaded" }, 500);
-    }
-
     const body = await c.req.json<{
+      manifestId?: string;
       reason: string;
       capability: unknown;
     }>();
@@ -117,6 +114,16 @@ export function createAPIRoutes(
         { error: "reason and capability are required" },
         400,
       );
+    }
+
+    // Determine manifest ID: from body or find the first registered manifest
+    let manifestId = body.manifestId;
+    if (!manifestId) {
+      const all = manifestManager.list();
+      if (all.length === 0) {
+        return c.json({ error: "No manifest registered" }, 500);
+      }
+      manifestId = all[0].manifest.id;
     }
 
     let capability;
@@ -129,6 +136,7 @@ export function createAPIRoutes(
     }
 
     const escalation = escalationManager.requestEscalation(
+      manifestId,
       body.reason,
       capability,
     );
@@ -181,19 +189,41 @@ export function createAPIRoutes(
 
   // POST /api/tasks — create and run a task
   app.post("/tasks", async (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
     try {
       const body = await c.req.json();
       const parsed = CreateTaskSchema.parse(body);
-      const task = taskManager.createTask(parsed.prompt, parsed.manifest);
 
-      // If the task has a manifest and a runner is available, execute it
-      if (task.manifestState && taskRunner) {
+      let manifest = parsed.manifest;
+      if (!manifest) {
+        manifest = {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          createdBy: "ui",
+          capabilities: { network: [] },
+          limits: {
+            warning: { runtimeSeconds: 300, costUSD: 1 },
+            limit: { runtimeSeconds: 600, costUSD: 5 },
+          },
+          escalation: {
+            defaultAction: "request_human",
+            approvalTimeoutSeconds: 300,
+            snapshotOnPause: true,
+          },
+          environment: {
+            snapshots: [],
+            files: {},
+            agent: { profile: "ollama-default", prompt: parsed.prompt },
+          },
+        };
+      }
+
+      const state = manifestManager.register(manifest);
+
+      // If a runner is available, execute it
+      if (taskRunner) {
         // Run in the background — don't await
-        taskRunner.run(task.id).catch((err) => {
-          taskManager.updateTask(task.id, {
+        taskRunner.run(manifest.id).catch((err) => {
+          manifestManager.update(manifest!.id, {
             status: "failed",
             completedAt: new Date().toISOString(),
             error: err instanceof Error ? err.message : String(err),
@@ -201,7 +231,7 @@ export function createAPIRoutes(
         });
       }
 
-      return c.json(task, 201);
+      return c.json(toTaskResponse(state), 201);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Invalid request body";
@@ -211,107 +241,54 @@ export function createAPIRoutes(
 
   // GET /api/tasks — list tasks (optional ?status= filter)
   app.get("/tasks", (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
     const status = c.req.query("status");
-    const tasks = taskManager.listTasks(status ? { status } : undefined);
-    return c.json(tasks);
+    const states = manifestManager.list(status ? { status } : undefined);
+    return c.json(states.map(toTaskResponse));
   });
 
   // GET /api/tasks/:id — full task detail with log, escalations, costs
   app.get("/tasks/:id", (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
     const id = c.req.param("id");
-    const task = taskManager.getTask(id);
-    if (!task) {
+    const state = manifestManager.get(id);
+    if (!state) {
       return c.json({ error: "Task not found" }, 404);
     }
-    // Match logs by task ID or manifest ID (they may differ for UI-created tasks)
-    const manifestId = task.manifestState?.manifest.id;
-    const matchesTask = (taskId: string) =>
-      taskId === task.id || (manifestId != null && taskId === manifestId);
-    const log = actionLog.getAll().filter((e) => matchesTask(e.taskId));
+    const log = actionLog.getAll().filter((e) => e.taskId === id);
     const escalations = escalationManager
       .getAll()
-      .filter((e) => matchesTask(e.taskId));
-    const costs = costTracker.get(task.id) ?? costTracker.get(manifestId ?? "");
+      .filter((e) => e.taskId === id || e.manifestId === id);
+    const costs = costTracker.get(id);
     return c.json({
-      task,
+      task: toTaskResponse(state),
       log,
       escalations,
-      costs: costs ?? { taskId: task.id, totalUSD: 0, requestCount: 0, llmCostUSD: 0 },
+      costs: costs ?? { taskId: id, totalUSD: 0, requestCount: 0, llmCostUSD: 0 },
     });
   });
 
   // PATCH /api/tasks/:id — update a task
   app.patch("/tasks/:id", async (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
     const id = c.req.param("id");
     try {
       const body = await c.req.json();
       const updates = UpdateTaskSchema.parse(body);
-      const task = taskManager.updateTask(id, updates);
-      return c.json(task);
+      const state = manifestManager.update(id, updates);
+      return c.json(toTaskResponse(state));
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Invalid request body";
-      if (message.includes("Task not found")) {
+      if (message.includes("Manifest not found")) {
         return c.json({ error: message }, 404);
       }
       return c.json({ error: message }, 400);
     }
   });
 
-  // POST /api/tasks/:id/manifest — attach manifest to a pending task
-  app.post("/tasks/:id/manifest", async (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
-    const id = c.req.param("id");
-    const task = taskManager.getTask(id);
-    if (!task) {
-      return c.json({ error: "Task not found" }, 404);
-    }
-    try {
-      const body = await c.req.json();
-      const manifest = ManifestSchema.parse(body);
-      taskManager.updateTask(id, {
-        manifestState: { manifest, grants: [] },
-      });
-      return c.json({ ok: true, taskId: id, manifestId: manifest.id });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Invalid manifest";
-      return c.json({ error: message }, 400);
-    }
-  });
-
-  // GET /api/tasks/:id/snapshots — snapshots for a task
-  app.get("/tasks/:id/snapshots", (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
-    const id = c.req.param("id");
-    const task = taskManager.getTask(id);
-    if (!task) {
-      return c.json({ error: "Task not found" }, 404);
-    }
-    return c.json(taskManager.getSnapshots(id));
-  });
-
   // POST /api/tasks/:id/snapshots — add a snapshot
   app.post("/tasks/:id/snapshots", async (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
     const id = c.req.param("id");
-    const task = taskManager.getTask(id);
-    if (!task) {
+    const state = manifestManager.get(id);
+    if (!state) {
       return c.json({ error: "Task not found" }, 404);
     }
     try {
@@ -319,13 +296,12 @@ export function createAPIRoutes(
       const parsed = CreateSnapshotSchema.parse(body);
       const snapshot = {
         id: crypto.randomUUID(),
-        taskId: id,
         tag: parsed.tag,
         createdAt: new Date().toISOString(),
         reason: parsed.reason,
       };
-      taskManager.addSnapshot(id, snapshot);
-      return c.json(snapshot, 201);
+      manifestManager.addSnapshot(id, snapshot);
+      return c.json({ ...snapshot, taskId: id }, 201);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Invalid request body";
@@ -335,10 +311,7 @@ export function createAPIRoutes(
 
   // GET /api/snapshots — all snapshots across all tasks
   app.get("/snapshots", (c) => {
-    if (!taskManager) {
-      return c.json({ error: "Task manager not available" }, 500);
-    }
-    return c.json(taskManager.getSnapshots());
+    return c.json(manifestManager.getAllSnapshots());
   });
 
   return app;
