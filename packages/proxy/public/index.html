@@ -1574,28 +1574,14 @@ function renderCompletedTasks(tasks) {
     tr.className = task.status === 'failed' ? 'row-failed' : '';
     tr.style.cursor = 'pointer';
     tr.onclick = function() { openTaskDetail(task.id); };
-    var errorTooltip = '';
-    if (task.error) {
-      errorTooltip = '<span class="has-tooltip" style="cursor:pointer"><span class="badge badge-' + task.status + '">' + task.status + '</span><span class="tip">' + escapeHtml(task.error).slice(0, 200) + '</span></span>';
-    } else {
-      errorTooltip = '<span class="badge badge-' + task.status + '">' + task.status + '</span>';
-    }
     tr.innerHTML = '<td><span class="badge-task-id">' + shortId(task.id) + '</span></td>' +
       '<td class="text-truncate">' + escapeHtml(truncate(task.prompt, 60)) + '</td>' +
-      '<td>' + errorTooltip + '</td>' +
+      '<td><span class="badge badge-' + task.status + '">' + task.status + '</span></td>' +
       '<td>' + duration(task.startedAt || task.createdAt, task.completedAt) + '</td>' +
       '<td>' + (task.exitCode !== undefined ? task.exitCode : '--') + '</td>' +
       '<td>' + grantCount + '</td>' +
       '<td>' + snapCount + '</td>';
     tbody.appendChild(tr);
-    if (task.error) {
-      var errRow = document.createElement('tr');
-      errRow.className = 'row-failed';
-      errRow.style.cursor = 'pointer';
-      errRow.onclick = function() { openTaskDetail(task.id); };
-      errRow.innerHTML = '<td colspan="7" style="font-size:11px;color:var(--danger);padding:4px 8px 8px;border-top:none">' + escapeHtml(truncate(task.error, 200)) + '</td>';
-      tbody.appendChild(errRow);
-    }
   });
 }
 
@@ -1646,7 +1632,7 @@ async function refreshTaskDetail(taskId) {
     // Error
     var errorEl = document.getElementById('detail-task-error');
     if (task.error) {
-      errorEl.style.display = '';
+      errorEl.style.display = 'block';
       errorEl.textContent = task.error;
     } else {
       errorEl.style.display = 'none';
